@@ -4,885 +4,470 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SolanaSnipe — Real-Time Onchain Alert Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #060810;
-    --bg2: #0c1020;
-    --bg3: #131829;
-    --border: rgba(99,180,255,0.12);
-    --border2: rgba(99,180,255,0.22);
-    --text: #e8eef8;
-    --text2: #7a90b8;
-    --text3: #3d5070;
-    --accent: #4af3b0;
-    --accent2: #3dd6f5;
-    --warn: #f5c842;
-    --danger: #ff5c5c;
-    --whale: #b06cff;
-    --new: #4af3b0;
-    --large: #f5c842;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Syne', sans-serif;
+    --bg: #060810;--bg2: #0c1020;--bg3: #131829;
+    --border: rgba(99,180,255,0.12);--border2: rgba(99,180,255,0.22);
+    --text: #e8eef8;--text2: #7a90b8;--text3: #3d5070;
+    --accent: #4af3b0;--accent2: #3dd6f5;--warn: #f5c842;--danger: #ff5c5c;--whale: #b06cff;
+    --mono: 'JetBrains Mono',monospace;--sans: 'Syne',sans-serif;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* scan-line overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
-    pointer-events: none;
-    z-index: 999;
-  }
-
-  header {
-    border-bottom: 1px solid var(--border);
-    background: rgba(6,8,16,0.95);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    height: 56px;
-  }
-
-  .logo {
-    font-family: var(--sans);
-    font-weight: 800;
-    font-size: 1.1rem;
-    letter-spacing: -0.02em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-dot {
-    width: 8px; height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s ease infinite;
-  }
-
-  @keyframes pulse {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.8); }
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .status-badge {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    padding: 4px 10px;
-    border-radius: 4px;
-    border: 1px solid;
-  }
-
-  .status-badge.connected {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(74,243,176,0.08);
-  }
-
-  .status-badge.disconnected {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: rgba(255,92,92,0.08);
-  }
-
-  .status-badge.connecting {
-    border-color: var(--warn);
-    color: var(--warn);
-    background: rgba(245,200,66,0.08);
-    animation: blink 1s step-end infinite;
-  }
-
-  @keyframes blink { 50% { opacity: 0.4; } }
-
-  .api-key-input {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    padding: 6px 10px;
-    border-radius: 4px;
-    width: 220px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .api-key-input:focus { border-color: var(--accent2); }
-  .api-key-input::placeholder { color: var(--text3); }
-
-  .connect-btn {
-    background: var(--accent);
-    color: #060810;
-    border: none;
-    font-family: var(--sans);
-    font-weight: 700;
-    font-size: 0.75rem;
-    padding: 7px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    transition: opacity 0.2s, transform 0.1s;
-  }
-
-  .connect-btn:hover { opacity: 0.88; }
-  .connect-btn:active { transform: scale(0.97); }
-
-  .main-layout {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    grid-template-rows: auto 1fr;
-    min-height: calc(100vh - 56px);
-  }
-
-  .sidebar {
-    border-right: 1px solid var(--border);
-    background: var(--bg2);
-    padding: 1.5rem;
-    grid-row: 1 / 3;
-  }
-
-  .section-label {
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.12em;
-    color: var(--text3);
-    text-transform: uppercase;
-    margin-bottom: 0.75rem;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 1.5rem;
-  }
-
-  .stat-card {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
-  }
-
-  .stat-label {
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    color: var(--text3);
-    letter-spacing: 0.08em;
-    margin-bottom: 4px;
-  }
-
-  .stat-value {
-    font-family: var(--mono);
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .stat-value.green { color: var(--accent); }
-  .stat-value.yellow { color: var(--warn); }
-  .stat-value.purple { color: var(--whale); }
-
-  .filter-section { margin-bottom: 1.5rem; }
-
-  .filter-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-
-  .filter-row:last-child { border-bottom: none; }
-  .filter-row:hover { opacity: 0.8; }
-
-  .filter-name {
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .filter-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-  }
-
-  .toggle {
-    width: 32px; height: 18px;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    border-radius: 9px;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .toggle.on { background: var(--accent); border-color: var(--accent); }
-
-  .toggle::after {
-    content: '';
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 12px; height: 12px;
-    background: #fff;
-    border-radius: 50%;
-    transition: left 0.2s;
-  }
-
-  .toggle.on::after { left: 16px; }
-
-  .threshold-control { margin-bottom: 1.5rem; }
-
-  .threshold-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-
-  .threshold-label {
-    font-size: 0.78rem;
-    color: var(--text2);
-  }
-
-  .threshold-val {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    color: var(--warn);
-  }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 4px;
-    background: var(--bg3);
-    border-radius: 2px;
-    outline: none;
-    margin: 4px 0 12px;
-  }
-
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px; height: 14px;
-    background: var(--warn);
-    border-radius: 50%;
-    cursor: pointer;
-  }
-
-  .sound-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    color: var(--text2);
-    cursor: pointer;
-    padding: 6px 0;
-  }
-
-  .feed-header {
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    height: 44px;
-    background: var(--bg);
-  }
-
-  .feed-tabs {
-    display: flex;
-    gap: 0;
-  }
-
-  .feed-tab {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    color: var(--text3);
-    padding: 0 16px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .feed-tab.active {
-    color: var(--accent2);
-    border-bottom-color: var(--accent2);
-  }
-
-  .feed-tab:hover:not(.active) { color: var(--text2); }
-
-  .clear-btn {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--text3);
-    background: none;
-    border: 1px solid var(--border);
-    padding: 4px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .clear-btn:hover { color: var(--text2); border-color: var(--border2); }
-
-  .feed-container {
-    overflow-y: auto;
-    height: calc(100vh - 56px - 44px);
-    padding: 1rem;
-    scroll-behavior: smooth;
-  }
-
-  .feed-container::-webkit-scrollbar { width: 4px; }
-  .feed-container::-webkit-scrollbar-track { background: transparent; }
-  .feed-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-  .alert-item {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    background: var(--bg2);
-    position: relative;
-    overflow: hidden;
-    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    transition: border-color 0.2s;
-  }
-
-  .alert-item:hover { border-color: var(--border2); }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .alert-item.whale { border-left: 3px solid var(--whale); }
-  .alert-item.new-token { border-left: 3px solid var(--new); }
-  .alert-item.large-trade { border-left: 3px solid var(--large); }
-
-  .alert-item::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.5s;
-  }
-
-  .alert-item.fresh::before {
-    background: linear-gradient(90deg, rgba(74,243,176,0.06) 0%, transparent 60%);
-    opacity: 1;
-  }
-
-  .alert-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-
-  .alert-type {
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    padding: 3px 8px;
-    border-radius: 3px;
-    text-transform: uppercase;
-  }
-
-  .alert-type.whale { background: rgba(176,108,255,0.15); color: var(--whale); }
-  .alert-type.new-token { background: rgba(74,243,176,0.12); color: var(--new); }
-  .alert-type.large-trade { background: rgba(245,200,66,0.12); color: var(--large); }
-
-  .alert-time {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--text3);
-  }
-
-  .alert-main {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .alert-symbol {
-    font-weight: 700;
-    font-size: 0.95rem;
-    letter-spacing: -0.01em;
-  }
-
-  .alert-arrow {
-    font-size: 0.8rem;
-    color: var(--text3);
-    margin: 0 2px;
-  }
-
-  .alert-vol {
-    font-family: var(--mono);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-
-  .alert-vol.up { color: var(--accent); }
-  .alert-vol.down { color: var(--danger); }
-  .alert-vol.neutral { color: var(--warn); }
-
-  .alert-sub {
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--text3);
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .alert-sub span { display: flex; align-items: center; gap: 4px; }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-    gap: 12px;
-    color: var(--text3);
-  }
-
-  .empty-icon {
-    font-size: 2rem;
-    opacity: 0.4;
-  }
-
-  .empty-label {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-  }
-
-  /* Ticker tape at top */
-  .ticker {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 6px 0;
-    overflow: hidden;
-    white-space: nowrap;
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--text2);
-    position: relative;
-  }
-
-  .ticker-inner {
-    display: inline-flex;
-    gap: 0;
-    animation: ticker 40s linear infinite;
-  }
-
-  .ticker-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 20px;
-    border-right: 1px solid var(--border);
-  }
-
-  .ticker-item .up { color: var(--accent); }
-  .ticker-item .down { color: var(--danger); }
-
-  @keyframes ticker {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
-  .new-listing-card {
-    background: rgba(74,243,176,0.05);
-    border: 1px solid rgba(74,243,176,0.18);
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .pill {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    border-radius: 3px;
-    letter-spacing: 0.06em;
-  }
-
-  .pill.pump { background: rgba(245,200,66,0.15); color: var(--warn); }
-  .pill.raydium { background: rgba(61,214,245,0.12); color: var(--accent2); }
-  .pill.meteora { background: rgba(176,108,255,0.12); color: var(--whale); }
-
-  /* Demo mode banner */
-  .demo-banner {
-    background: rgba(245,200,66,0.1);
-    border-bottom: 1px solid rgba(245,200,66,0.25);
-    padding: 6px 2rem;
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--warn);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .demo-banner.hidden { display: none; }
-
-  @media (max-width: 900px) {
-    .main-layout { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:999;}
+
+  header{border-bottom:1px solid var(--border);background:rgba(6,8,16,0.97);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;}
+  .logo{font-family:var(--sans);font-weight:800;font-size:1.1rem;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;}
+  .logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent);animation:pulse 2s ease infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
+  .hright{display:flex;align-items:center;gap:10px;}
+  .status-badge{font-family:var(--mono);font-size:0.68rem;padding:4px 10px;border-radius:4px;border:1px solid;transition:all 0.3s;}
+  .status-badge.live{border-color:var(--accent);color:var(--accent);background:rgba(74,243,176,0.08);}
+  .status-badge.off{border-color:var(--text3);color:var(--text3);background:transparent;}
+  .status-badge.loading{border-color:var(--warn);color:var(--warn);background:rgba(245,200,66,0.08);animation:blink 1s step-end infinite;}
+  .status-badge.error{border-color:var(--danger);color:var(--danger);background:rgba(255,92,92,0.08);}
+  @keyframes blink{50%{opacity:0.4;}}
+  .api-input{background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.72rem;padding:6px 10px;border-radius:4px;width:230px;outline:none;transition:border-color 0.2s;}
+  .api-input:focus{border-color:var(--accent2);}
+  .api-input::placeholder{color:var(--text3);}
+  .connect-btn{background:var(--accent);color:#060810;border:none;font-family:var(--sans);font-weight:700;font-size:0.75rem;padding:7px 16px;border-radius:4px;cursor:pointer;letter-spacing:0.04em;transition:opacity 0.2s;}
+  .connect-btn:hover{opacity:0.85;}
+  .connect-btn.dis{background:var(--danger);color:#fff;}
+
+  .info-bar{background:rgba(61,214,245,0.07);border-bottom:1px solid rgba(61,214,245,0.15);padding:5px 2rem;font-family:var(--mono);font-size:0.65rem;color:var(--accent2);display:flex;align-items:center;gap:8px;}
+  .info-bar.demo{background:rgba(245,200,66,0.07);border-bottom-color:rgba(245,200,66,0.2);color:var(--warn);}
+  .info-bar.hidden{display:none;}
+
+  .ticker{background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 0;overflow:hidden;white-space:nowrap;font-family:var(--mono);font-size:0.67rem;color:var(--text2);}
+  .ticker-inner{display:inline-flex;animation:tick 35s linear infinite;}
+  .titem{display:inline-flex;align-items:center;gap:5px;padding:0 18px;border-right:1px solid var(--border);}
+  .up{color:var(--accent);}.down{color:var(--danger);}
+  @keyframes tick{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+  .layout{display:grid;grid-template-columns:272px 1fr;min-height:calc(100vh - 100px);}
+  .sidebar{border-right:1px solid var(--border);background:var(--bg2);padding:1.25rem;overflow-y:auto;}
+  .slabel{font-family:var(--mono);font-size:0.6rem;letter-spacing:0.12em;color:var(--text3);text-transform:uppercase;margin-bottom:0.65rem;}
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:1.3rem;}
+  .scard{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:11px;}
+  .scard-label{font-family:var(--mono);font-size:0.58rem;color:var(--text3);letter-spacing:0.08em;margin-bottom:3px;}
+  .scard-val{font-family:var(--mono);font-size:1.05rem;font-weight:700;}
+  .scard-val.g{color:var(--accent);}.scard-val.p{color:var(--whale);}.scard-val.y{color:var(--warn);}.scard-val.r{color:var(--danger);}
+
+  .filter-block{margin-bottom:1.3rem;}
+  .frow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+  .frow:last-child{border-bottom:none;}
+  .frow:hover{opacity:0.8;}
+  .fname{font-size:0.78rem;display:flex;align-items:center;gap:7px;}
+  .fdot{width:6px;height:6px;border-radius:50%;}
+  .tog{width:30px;height:17px;border-radius:9px;position:relative;transition:background 0.2s;border:1px solid var(--border2);}
+  .tog.on{background:var(--accent);border-color:var(--accent);}
+  .tog.off{background:var(--bg3);}
+  .tog::after{content:'';position:absolute;top:2px;width:11px;height:11px;background:#fff;border-radius:50%;transition:left 0.2s;}
+  .tog.on::after{left:15px;}.tog.off::after{left:2px;}
+
+  .thresh-block{margin-bottom:1.3rem;}
+  .thresh-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+  .thresh-label{font-size:0.76rem;color:var(--text2);}
+  .thresh-val{font-family:var(--mono);font-size:0.72rem;color:var(--warn);}
+  input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg3);border-radius:2px;outline:none;margin:3px 0 12px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--warn);border-radius:50%;cursor:pointer;}
+
+  .next-poll{font-family:var(--mono);font-size:0.62rem;color:var(--text3);display:flex;align-items:center;gap:6px;padding:8px 0;}
+  .poll-bar{flex:1;height:2px;background:var(--bg3);border-radius:1px;overflow:hidden;}
+  .poll-fill{height:100%;background:var(--accent2);border-radius:1px;transition:width 0.1s linear;}
+
+  .feed-header{border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:44px;background:var(--bg);}
+  .tabs{display:flex;}
+  .tab{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.06em;color:var(--text3);padding:0 14px;height:44px;display:flex;align-items:center;cursor:pointer;border-bottom:2px solid transparent;transition:color 0.2s,border-color 0.2s;}
+  .tab.act{color:var(--accent2);border-bottom-color:var(--accent2);}
+  .tab:hover:not(.act){color:var(--text2);}
+  .hdr-right{display:flex;align-items:center;gap:10px;}
+  .clear-btn{font-family:var(--mono);font-size:0.62rem;color:var(--text3);background:none;border:1px solid var(--border);padding:4px 9px;border-radius:3px;cursor:pointer;transition:color 0.2s;}
+  .clear-btn:hover{color:var(--text2);}
+  .api-call-count{font-family:var(--mono);font-size:0.62rem;color:var(--text3);}
+
+  .feed{overflow-y:auto;height:calc(100vh - 156px);padding:0.85rem;}
+  .feed::-webkit-scrollbar{width:3px;}
+  .feed::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+  .alert-item{border:1px solid var(--border);border-radius:6px;padding:11px 13px;margin-bottom:7px;background:var(--bg2);animation:slideIn 0.3s cubic-bezier(0.16,1,0.3,1);}
+  .alert-item:hover{border-color:var(--border2);}
+  .alert-item.whale{border-left:3px solid var(--whale);}
+  .alert-item.new-token{border-left:3px solid var(--accent);}
+  .alert-item.large{border-left:3px solid var(--warn);}
+  .alert-item.trending{border-left:3px solid var(--accent2);}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+
+  .atop{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+  .atype{font-family:var(--mono);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;padding:2px 7px;border-radius:3px;text-transform:uppercase;}
+  .atype.whale{background:rgba(176,108,255,0.15);color:var(--whale);}
+  .atype.new-token{background:rgba(74,243,176,0.12);color:var(--accent);}
+  .atype.large{background:rgba(245,200,66,0.12);color:var(--warn);}
+  .atype.trending{background:rgba(61,214,245,0.12);color:var(--accent2);}
+  .atime{font-family:var(--mono);font-size:0.62rem;color:var(--text3);}
+
+  .amain{display:flex;align-items:baseline;gap:7px;margin-bottom:4px;flex-wrap:wrap;}
+  .asym{font-weight:700;font-size:0.92rem;letter-spacing:-0.01em;}
+  .arr{font-size:0.78rem;color:var(--text3);margin:0 1px;}
+  .avol{font-family:var(--mono);font-size:0.82rem;font-weight:700;}
+  .avol.up{color:var(--accent);}.avol.dn{color:var(--danger);}.avol.ne{color:var(--warn);}
+
+  .asub{font-family:var(--mono);font-size:0.65rem;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .pill{display:inline-block;font-family:var(--mono);font-size:0.58rem;padding:2px 6px;border-radius:3px;letter-spacing:0.04em;}
+  .pill.pump{background:rgba(245,200,66,0.14);color:var(--warn);}
+  .pill.ray{background:rgba(61,214,245,0.11);color:var(--accent2);}
+  .pill.met{background:rgba(176,108,255,0.11);color:var(--whale);}
+  .pill.orca{background:rgba(74,243,176,0.11);color:var(--accent);}
+  .pill.other{background:rgba(122,144,184,0.15);color:var(--text2);}
+
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:260px;gap:10px;color:var(--text3);}
+  .empty-icon{font-size:1.8rem;opacity:0.35;}
+  .empty-label{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;}
+
+  .error-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:rgba(255,92,92,0.15);border:1px solid rgba(255,92,92,0.4);color:var(--danger);font-family:var(--mono);font-size:0.7rem;padding:10px 16px;border-radius:5px;z-index:200;animation:slideIn 0.3s ease;max-width:320px;}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">
-    <div class="logo-dot"></div>
-    SolanaSnipe
-  </div>
-  <div class="header-right">
-    <span class="status-badge disconnected" id="statusBadge">DISCONNECTED</span>
-    <input class="api-key-input" id="apiKeyInput" type="password" placeholder="Enter Birdeye API key…" />
-    <button class="connect-btn" id="connectBtn" onclick="toggleConnection()">CONNECT</button>
+  <div class="logo"><div class="logo-dot"></div>SolanaSnipe</div>
+  <div class="hright">
+    <span class="status-badge off" id="statusBadge">DISCONNECTED</span>
+    <input class="api-input" id="apiInput" type="password" placeholder="Paste Birdeye API key…">
+    <button class="connect-btn" id="connectBtn" onclick="handleConnect()">CONNECT</button>
   </div>
 </header>
 
-<div class="demo-banner" id="demoBanner">
-  ⚡ DEMO MODE — Simulated data. Enter your Birdeye API key above and click CONNECT to go live.
+<div class="info-bar demo" id="infoBanner">
+  ⚡ DEMO MODE — Enter your Birdeye API key above and click CONNECT to pull live Solana data via REST API (free tier).
 </div>
 
-<div class="ticker" id="tickerBar">
-  <div class="ticker-inner" id="tickerInner">
-    <!-- filled by JS -->
-  </div>
-</div>
+<div class="ticker"><div class="ticker-inner" id="tickerInner"></div></div>
 
-<div class="main-layout">
+<div class="layout">
+  <!-- SIDEBAR -->
   <div class="sidebar">
-    <p class="section-label">Live Stats</p>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">TOTAL ALERTS</div>
-        <div class="stat-value green" id="statTotal">0</div>
+    <p class="slabel">Live Stats</p>
+    <div class="sgrid">
+      <div class="scard"><div class="scard-label">TOTAL</div><div class="scard-val g" id="stTotal">0</div></div>
+      <div class="scard"><div class="scard-label">WHALE</div><div class="scard-val p" id="stWhale">0</div></div>
+      <div class="scard"><div class="scard-label">NEW TOKENS</div><div class="scard-val g" id="stNew">0</div></div>
+      <div class="scard"><div class="scard-label">LARGE TRADES</div><div class="scard-val y" id="stLarge">0</div></div>
+    </div>
+
+    <p class="slabel">Alert Filters</p>
+    <div class="filter-block">
+      <div class="frow" onclick="toggleFilter('whale')">
+        <span class="fname"><span class="fdot" style="background:var(--whale)"></span>Whale Wallets</span>
+        <div class="tog on" id="ftog-whale"></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">WHALE MOVES</div>
-        <div class="stat-value purple" id="statWhale">0</div>
+      <div class="frow" onclick="toggleFilter('new')">
+        <span class="fname"><span class="fdot" style="background:var(--accent)"></span>New Listings</span>
+        <div class="tog on" id="ftog-new"></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">NEW LISTINGS</div>
-        <div class="stat-value green" id="statNew">0</div>
+      <div class="frow" onclick="toggleFilter('large')">
+        <span class="fname"><span class="fdot" style="background:var(--warn)"></span>Large Trades</span>
+        <div class="tog on" id="ftog-large"></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">LARGE TRADES</div>
-        <div class="stat-value yellow" id="statLarge">0</div>
+      <div class="frow" onclick="toggleFilter('trending')">
+        <span class="fname"><span class="fdot" style="background:var(--accent2)"></span>Trending Tokens</span>
+        <div class="tog on" id="ftog-trending"></div>
       </div>
     </div>
 
-    <p class="section-label">Alert Filters</p>
-    <div class="filter-section">
-      <div class="filter-row" onclick="toggleFilter('whale')">
-        <span class="filter-name">
-          <span class="filter-dot" style="background:var(--whale)"></span>
-          Whale Wallets
-        </span>
-        <div class="toggle on" id="filter-whale"></div>
+    <p class="slabel">Min Trade Size (USD)</p>
+    <div class="thresh-block">
+      <div class="thresh-row">
+        <span class="thresh-label">Whale threshold</span>
+        <span class="thresh-val" id="whaleTreshVal">$50,000</span>
       </div>
-      <div class="filter-row" onclick="toggleFilter('new')">
-        <span class="filter-name">
-          <span class="filter-dot" style="background:var(--new)"></span>
-          New Listings
-        </span>
-        <div class="toggle on" id="filter-new"></div>
+      <input type="range" min="10000" max="500000" step="5000" value="50000" id="whaleSlider"
+        oninput="updateThresh('whale', this.value)">
+      <div class="thresh-row">
+        <span class="thresh-label">Large trade</span>
+        <span class="thresh-val" id="largeTreshVal">$5,000</span>
       </div>
-      <div class="filter-row" onclick="toggleFilter('large')">
-        <span class="filter-name">
-          <span class="filter-dot" style="background:var(--large)"></span>
-          Large Trades
-        </span>
-        <div class="toggle on" id="filter-large"></div>
-      </div>
+      <input type="range" min="1000" max="100000" step="1000" value="5000" id="largeSlider"
+        oninput="updateThresh('large', this.value)">
     </div>
 
-    <p class="section-label">Thresholds</p>
-    <div class="threshold-control">
-      <div class="threshold-row">
-        <span class="threshold-label">Min Trade Size</span>
-        <span class="threshold-val" id="minTradeVal">$5,000</span>
+    <p class="slabel">Poll Interval</p>
+    <div class="thresh-block">
+      <div class="thresh-row">
+        <span class="thresh-label">Refresh every</span>
+        <span class="thresh-val" id="pollVal">15s</span>
       </div>
-      <input type="range" min="1000" max="100000" step="1000" value="5000" id="minTradeSlider"
-        oninput="updateThreshold('minTrade', this.value)">
-
-      <div class="threshold-row">
-        <span class="threshold-label">Min Liquidity</span>
-        <span class="threshold-val" id="minLiqVal">$1,000</span>
-      </div>
-      <input type="range" min="500" max="50000" step="500" value="1000" id="minLiqSlider"
-        oninput="updateThreshold('minLiq', this.value)">
+      <input type="range" min="10" max="60" step="5" value="15" id="pollSlider"
+        oninput="updatePollInterval(this.value)">
     </div>
 
-    <p class="section-label">Source Filter</p>
-    <div class="filter-section">
-      <div class="filter-row" onclick="toggleSource('pump')">
-        <span class="filter-name">pump.fun</span>
-        <div class="toggle on" id="source-pump"></div>
-      </div>
-      <div class="filter-row" onclick="toggleSource('raydium')">
-        <span class="filter-name">Raydium</span>
-        <div class="toggle on" id="source-raydium"></div>
-      </div>
-      <div class="filter-row" onclick="toggleSource('meteora')">
-        <span class="filter-name">Meteora</span>
-        <div class="toggle on" id="source-meteora"></div>
-      </div>
-    </div>
-
-    <div class="sound-toggle" onclick="toggleSound()">
-      <span id="soundIcon">🔈</span>
-      <span id="soundLabel" style="font-size:0.78rem;color:var(--text2)">Alert sounds off</span>
+    <p class="slabel">Next Poll</p>
+    <div class="next-poll">
+      <span id="countdownTxt">—</span>
+      <div class="poll-bar"><div class="poll-fill" id="pollFill" style="width:0%"></div></div>
     </div>
   </div>
 
-  <div style="display:flex;flex-direction:column;">
+  <!-- FEED -->
+  <div style="display:flex;flex-direction:column;background:var(--bg);">
     <div class="feed-header">
-      <div class="feed-tabs">
-        <div class="feed-tab active" onclick="switchTab('all')" id="tab-all">ALL ALERTS</div>
-        <div class="feed-tab" onclick="switchTab('whale')" id="tab-whale">WHALE</div>
-        <div class="feed-tab" onclick="switchTab('new')" id="tab-new">NEW LISTINGS</div>
-        <div class="feed-tab" onclick="switchTab('large')" id="tab-large">LARGE TRADES</div>
+      <div class="tabs">
+        <div class="tab act" onclick="switchTab('all')" id="tab-all">ALL</div>
+        <div class="tab" onclick="switchTab('whale')" id="tab-whale">WHALE</div>
+        <div class="tab" onclick="switchTab('new')" id="tab-new">NEW LISTINGS</div>
+        <div class="tab" onclick="switchTab('large')" id="tab-large">LARGE TRADES</div>
+        <div class="tab" onclick="switchTab('trending')" id="tab-trending">TRENDING</div>
       </div>
-      <button class="clear-btn" onclick="clearFeed()">CLEAR</button>
+      <div class="hdr-right">
+        <span class="api-call-count" id="apiCallCount">0 API calls</span>
+        <button class="clear-btn" onclick="clearFeed()">CLEAR</button>
+      </div>
     </div>
-    <div class="feed-container" id="feedContainer">
+    <div class="feed" id="feed">
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">◎</div>
-        <div class="empty-label">AWAITING SIGNALS…</div>
+        <div class="empty-label">ENTER API KEY AND CONNECT</div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-let ws = null;
-let isConnected = false;
-let isDemoMode = true;
-let soundEnabled = false;
-let demoInterval = null;
-let filters = { whale: true, new: true, large: true };
-let sources = { pump: true, raydium: true, meteora: true };
+// ─── State ────────────────────────────────────────────────────────────────────
+let apiKey = '';
+let isLive = false;
+let isDemoMode = false;
+let pollInterval = 15; // seconds
+let pollTimerId = null;
+let countdownTimerId = null;
+let pollCountdown = 0;
+let apiCallCount = 0;
+let whaleThresh = 50000;
+let largeThresh = 5000;
 let currentTab = 'all';
-let stats = { total: 0, whale: 0, new: 0, large: 0 };
+let filters = { whale: true, new: true, large: true, trending: true };
 let allAlerts = [];
-let minTrade = 5000, minLiq = 1000;
+let seenTxHashes = new Set();
+let seenNewTokens = new Set();
+let stats = { total: 0, whale: 0, new: 0, large: 0 };
+let demoInterval = null;
 
-const DEMO_TOKENS = [
-  { symbol: 'BONK', name: 'Bonk', addr: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-  { symbol: 'JUP', name: 'Jupiter', addr: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' },
-  { symbol: 'WIF', name: 'dogwifhat', addr: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm' },
-  { symbol: 'PYTH', name: 'Pyth Network', addr: 'HZ1JovNiVvGrCNiiYWY1CX5hsm1mJX9yAh1SFRde9hP' },
-  { symbol: 'RNDR', name: 'Render', addr: 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof' },
-  { symbol: 'MEME', name: 'Memecoin', addr: '3r4hNFoiGy1L3HZAQDJWfKJbAEoLjB3tREDwN8CKFpA' },
-  { symbol: 'KWEEN', name: 'KweenCoin', addr: '4x8xKrTFoiGy1L3HZAQDJWfKJbAEoLjB3tREDwN8CKF' },
-  { symbol: 'PEPE2', name: 'Pepe2.0 Sol', addr: '9r4hNFoiGy1L3HZAQDJWfKJbAEoLjB3tREDwN8CKFpA' },
+// Top Solana tokens to monitor for large trades
+const WATCH_TOKENS = [
+  { symbol: 'SOL',  address: 'So11111111111111111111111111111111111111112' },
+  { symbol: 'BONK', address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
+  { symbol: 'JUP',  address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' },
+  { symbol: 'WIF',  address: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm' },
+  { symbol: 'PYTH', address: 'HZ1JovNiVvGrCNiiYWY1CX5hsm1mJX9yAh1SFRde9hP' },
+  { symbol: 'RAY',  address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R' },
 ];
 
-const SOURCES_LIST = ['pump_dot_fun', 'raydium', 'meteora', 'orca', 'lifinity'];
-const SOURCE_LABELS = { pump_dot_fun: 'pump.fun', raydium: 'Raydium', meteora: 'Meteora', orca: 'Orca', lifinity: 'Lifinity' };
+const BASE_URL = 'https://public-api.birdeye.so';
 
+// ─── Formatting ───────────────────────────────────────────────────────────────
 function fmt(n) {
-  if (n >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return '$' + (n/1e3).toFixed(1) + 'K';
+  if (!n || isNaN(n)) return '$0';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
   return '$' + n.toFixed(0);
 }
-
-function fmtAddr(addr) {
-  return addr.slice(0,4) + '…' + addr.slice(-4);
+function fmtAddr(a) { return a ? a.slice(0, 5) + '…' + a.slice(-4) : '—'; }
+function nowt() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function sourcePill(src) {
+  if (!src) return '<span class="pill other">unknown</span>';
+  const s = src.toLowerCase();
+  if (s.includes('pump')) return '<span class="pill pump">pump.fun</span>';
+  if (s.includes('raydium')) return '<span class="pill ray">Raydium</span>';
+  if (s.includes('meteora')) return '<span class="pill met">Meteora</span>';
+  if (s.includes('orca')) return '<span class="pill orca">Orca</span>';
+  return `<span class="pill other">${src.slice(0, 10)}</span>`;
 }
 
-function now() {
-  return new Date().toLocaleTimeString('en-US', { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+// ─── Birdeye REST API calls ────────────────────────────────────────────────────
+async function birdeyeGet(path, params = {}) {
+  const url = new URL(BASE_URL + path);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
+    headers: {
+      'X-API-KEY': apiKey,
+      'x-chain': 'solana'
+    }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  apiCallCount++;
+  document.getElementById('apiCallCount').textContent = apiCallCount + ' API calls';
+  return res.json();
 }
 
-function rand(min, max) { return Math.random() * (max - min) + min; }
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+// Fetch recent trades for a token and find large ones
+async function fetchLargeTradesForToken(token) {
+  try {
+    const data = await birdeyeGet('/defi/txs/token', {
+      address: token.address,
+      tx_type: 'swap',
+      limit: 20,
+      sort_type: 'desc'
+    });
+    if (!data?.data?.items) return;
+    for (const tx of data.data.items) {
+      if (seenTxHashes.has(tx.txHash)) continue;
+      seenTxHashes.add(tx.txHash);
+      const vol = tx.volumeUSD || (tx.from?.uiAmount * tx.from?.nearestPrice) || 0;
+      if (vol < largeThresh) continue;
+      const isWhale = vol >= whaleThresh;
+      const isBuy = tx.side === 'buy' || tx.to?.symbol === token.symbol;
+      processAlert({
+        type: isWhale ? 'whale' : 'large',
+        symbol: token.symbol,
+        from: tx.from?.symbol || '?',
+        to: tx.to?.symbol || '?',
+        volumeUSD: vol,
+        isBuy,
+        owner: tx.owner || tx.source,
+        source: tx.source,
+        txHash: tx.txHash,
+        time: nowt(),
+      });
+    }
+  } catch (e) { /* token may have no trades */ }
+}
 
-function generateDemoAlert() {
-  const types = ['whale', 'new', 'large'];
-  const type = pick(types);
-  const token = pick(DEMO_TOKENS);
-  const source = pick(SOURCES_LIST);
-  const volUSD = type === 'large' ? rand(minTrade, minTrade * 8) : rand(500, minTrade * 4);
+// Fetch new token listings
+async function fetchNewListings() {
+  try {
+    const data = await birdeyeGet('/defi/v2/tokens/new_listing', {
+      limit: 20,
+      meme_platform_enabled: true
+    });
+    if (!data?.data?.items) return;
+    for (const token of data.data.items) {
+      if (seenNewTokens.has(token.address)) continue;
+      seenNewTokens.add(token.address);
+      processAlert({
+        type: 'new',
+        symbol: token.symbol || '?',
+        name: token.name || '?',
+        address: token.address,
+        liquidity: token.liquidity || 0,
+        source: token.source || 'unknown',
+        time: nowt(),
+      });
+    }
+  } catch (e) { console.warn('New listings fetch failed:', e.message); }
+}
 
-  if (type === 'whale') {
-    return {
-      type: 'whale',
-      symbol: token.symbol,
-      name: token.name,
-      address: token.addr,
-      from: 'SOL',
-      to: token.symbol,
-      volumeUSD: rand(50000, 500000),
-      owner: Array.from({length: 44}, () => '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'[Math.floor(Math.random()*58)]).join(''),
-      source: source,
-      time: now(),
-    };
-  } else if (type === 'new') {
-    return {
-      type: 'new',
-      symbol: '$' + ['MOON','FROG','CAT','DOGE2','CHAD','APE','NGL','REKT','WAGMI','GG'][Math.floor(Math.random()*10)],
-      name: 'New Token ' + Math.floor(rand(1,999)),
-      address: Array.from({length: 44}, () => '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'[Math.floor(Math.random()*58)]).join(''),
-      liquidity: rand(1000, 50000),
-      source: source,
-      time: now(),
-    };
-  } else {
-    const isBuy = Math.random() > 0.5;
-    return {
-      type: 'large',
-      symbol: token.symbol,
-      name: token.name,
-      address: token.addr,
-      from: isBuy ? 'SOL' : token.symbol,
-      to: isBuy ? token.symbol : 'USDC',
-      volumeUSD: rand(minTrade, minTrade * 6),
-      isBuy,
-      source: source,
-      time: now(),
-    };
+// Fetch trending tokens
+async function fetchTrending() {
+  try {
+    const data = await birdeyeGet('/defi/token_trending', { sort_by: 'rank', sort_type: 'asc', limit: 5 });
+    if (!data?.data?.tokens) return;
+    for (const token of data.data.tokens) {
+      const key = token.address + '_trending_' + new Date().toDateString();
+      if (seenNewTokens.has(key)) continue;
+      seenNewTokens.add(key);
+      const change = token.price24hChangePercent;
+      if (Math.abs(change) < 10) continue; // only alert on significant movers
+      processAlert({
+        type: 'trending',
+        symbol: token.symbol || '?',
+        name: token.name || '?',
+        address: token.address,
+        price: token.price,
+        change24h: change,
+        volume24h: token.volume24hUSD,
+        time: nowt(),
+      });
+    }
+  } catch (e) { console.warn('Trending fetch failed:', e.message); }
+}
+
+// Also fetch recent txs from /defi/v3/txs/recent for broader coverage
+async function fetchRecentTxs() {
+  try {
+    const data = await birdeyeGet('/defi/v3/txs/recent', { limit: 30 });
+    if (!data?.data?.items) return;
+    for (const tx of data.data.items) {
+      if (seenTxHashes.has(tx.txHash)) continue;
+      seenTxHashes.add(tx.txHash);
+      const vol = tx.volumeUSD || 0;
+      if (vol < largeThresh) continue;
+      const isWhale = vol >= whaleThresh;
+      processAlert({
+        type: isWhale ? 'whale' : 'large',
+        symbol: tx.to?.symbol || tx.from?.symbol || '?',
+        from: tx.from?.symbol || '?',
+        to: tx.to?.symbol || '?',
+        volumeUSD: vol,
+        isBuy: tx.side === 'buy',
+        owner: tx.owner,
+        source: tx.source,
+        txHash: tx.txHash,
+        time: nowt(),
+      });
+    }
+  } catch (e) { /* silent */ }
+}
+
+// ─── Full poll cycle ───────────────────────────────────────────────────────────
+async function runPoll() {
+  if (!isLive || !apiKey) return;
+  setStatus('loading', 'FETCHING…');
+  try {
+    await fetchNewListings();
+    await fetchTrending();
+    await fetchRecentTxs();
+    // stagger token polls to avoid rate limiting
+    for (let i = 0; i < WATCH_TOKENS.length; i++) {
+      await fetchLargeTradesForToken(WATCH_TOKENS[i]);
+      await sleep(300);
+    }
+    setStatus('live', 'LIVE');
+  } catch (e) {
+    setStatus('error', 'ERROR');
+    showError('Poll error: ' + e.message);
   }
 }
 
-function alertMatchesTab(alert) {
-  if (currentTab === 'all') return true;
-  if (currentTab === 'whale') return alert.type === 'whale';
-  if (currentTab === 'new') return alert.type === 'new';
-  if (currentTab === 'large') return alert.type === 'large';
-  return true;
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Poll timer ───────────────────────────────────────────────────────────────
+function startPolling() {
+  stopPolling();
+  runPoll(); // immediate first poll
+  pollTimerId = setInterval(runPoll, pollInterval * 1000);
+  startCountdown();
 }
 
-function alertPassesFilters(alert) {
-  if (!filters[alert.type === 'new' ? 'new' : alert.type === 'whale' ? 'whale' : 'large']) return false;
-  return true;
+function stopPolling() {
+  if (pollTimerId) { clearInterval(pollTimerId); pollTimerId = null; }
+  stopCountdown();
 }
 
-function renderAlert(alert) {
-  if (!alertPassesFilters(alert)) return;
-  if (!alertMatchesTab(alert)) return;
-
-  const el = document.createElement('div');
-  el.className = `alert-item ${alert.type === 'new' ? 'new-token' : alert.type} fresh`;
-
-  let labelClass = alert.type === 'new' ? 'new-token' : alert.type;
-  let labelText = alert.type === 'whale' ? 'WHALE' : alert.type === 'new' ? 'NEW LISTING' : 'LARGE TRADE';
-
-  let srcLabel = SOURCE_LABELS[alert.source] || alert.source;
-  let srcPillClass = alert.source === 'pump_dot_fun' ? 'pump' : alert.source === 'raydium' ? 'raydium' : 'meteora';
-
-  let body = '';
-
-  if (alert.type === 'whale') {
-    body = `
-      <div class="alert-top">
-        <span class="alert-type ${labelClass}">${labelText}</span>
-        <span class="alert-time">${alert.time}</span>
-      </div>
-      <div class="alert-main">
-        <span class="alert-symbol">${alert.symbol}</span>
-        <span class="alert-arrow">←</span>
-        <span class="alert-symbol" style="color:var(--text2)">SOL</span>
-        <span class="alert-vol up" style="margin-left:8px">${fmt(alert.volumeUSD)}</span>
-      </div>
-      <div class="alert-sub">
-        <span>wallet <span style="color:var(--accent2)">${fmtAddr(alert.owner)}</span></span>
-        <span><span class="pill ${srcPillClass}">${srcLabel}</span></span>
-        <span>tx size ${fmt(alert.volumeUSD)}</span>
-      </div>`;
-  } else if (alert.type === 'new') {
-    body = `
-      <div class="alert-top">
-        <span class="alert-type ${labelClass}">${labelText}</span>
-        <span class="alert-time">${alert.time}</span>
-      </div>
-      <div class="alert-main">
-        <span class="alert-symbol">${alert.symbol}</span>
-        <span class="alert-vol neutral" style="margin-left:8px">liq ${fmt(alert.liquidity)}</span>
-      </div>
-      <div class="alert-sub">
-        <span>addr <span style="color:var(--accent2)">${fmtAddr(alert.address)}</span></span>
-        <span><span class="pill ${srcPillClass}">${srcLabel}</span></span>
-      </div>`;
-  } else {
-    body = `
-      <div class="alert-top">
-        <span class="alert-type ${labelClass}">${labelText}</span>
-        <span class="alert-time">${alert.time}</span>
-      </div>
-      <div class="alert-main">
-        <span class="alert-symbol">${alert.from}</span>
-        <span class="alert-arrow">→</span>
-        <span class="alert-symbol">${alert.to}</span>
-        <span class="alert-vol ${alert.isBuy ? 'up' : 'down'}" style="margin-left:8px">${fmt(alert.volumeUSD)}</span>
-      </div>
-      <div class="alert-sub">
-        <span>token <span style="color:var(--accent2)">${alert.symbol}</span></span>
-        <span><span class="pill ${srcPillClass}">${srcLabel}</span></span>
-        <span>${alert.isBuy ? '▲ BUY' : '▼ SELL'}</span>
-      </div>`;
-  }
-
-  el.innerHTML = body;
-
-  const container = document.getElementById('feedContainer');
-  const empty = document.getElementById('emptyState');
-  if (empty && container.contains(empty)) container.removeChild(empty);
-
-  container.insertBefore(el, container.firstChild);
-  setTimeout(() => el.classList.remove('fresh'), 800);
-
-  // keep max 200 items in DOM
-  while (container.children.length > 200) {
-    container.removeChild(container.lastChild);
-  }
+function startCountdown() {
+  stopCountdown();
+  pollCountdown = pollInterval;
+  countdownTimerId = setInterval(() => {
+    pollCountdown--;
+    const pct = ((pollInterval - pollCountdown) / pollInterval) * 100;
+    document.getElementById('pollFill').style.width = pct + '%';
+    document.getElementById('countdownTxt').textContent = pollCountdown + 's';
+    if (pollCountdown <= 0) {
+      pollCountdown = pollInterval;
+      document.getElementById('pollFill').style.width = '0%';
+    }
+  }, 1000);
 }
 
+function stopCountdown() {
+  if (countdownTimerId) { clearInterval(countdownTimerId); countdownTimerId = null; }
+  document.getElementById('countdownTxt').textContent = '—';
+  document.getElementById('pollFill').style.width = '0%';
+}
+
+// ─── Alert processing ─────────────────────────────────────────────────────────
 function processAlert(alert) {
   allAlerts.unshift(alert);
   stats.total++;
@@ -890,339 +475,244 @@ function processAlert(alert) {
   if (alert.type === 'new') stats.new++;
   if (alert.type === 'large') stats.large++;
   updateStats();
-  renderAlert(alert);
-  if (soundEnabled) playBeep(alert.type);
+  if (filters[alert.type] && matchesTab(alert)) renderAlertToDOM(alert, true);
 }
 
 function updateStats() {
-  document.getElementById('statTotal').textContent = stats.total;
-  document.getElementById('statWhale').textContent = stats.whale;
-  document.getElementById('statNew').textContent = stats.new;
-  document.getElementById('statLarge').textContent = stats.large;
+  document.getElementById('stTotal').textContent = stats.total;
+  document.getElementById('stWhale').textContent = stats.whale;
+  document.getElementById('stNew').textContent = stats.new;
+  document.getElementById('stLarge').textContent = stats.large;
+}
+
+function matchesTab(alert) {
+  if (currentTab === 'all') return true;
+  return alert.type === currentTab || (currentTab === 'new' && alert.type === 'new') || (currentTab === 'trending' && alert.type === 'trending');
+}
+
+function renderAlertToDOM(alert, prepend = false) {
+  const feed = document.getElementById('feed');
+  const empty = document.getElementById('emptyState');
+  if (empty && feed.contains(empty)) feed.removeChild(empty);
+
+  const el = document.createElement('div');
+  const tc = alert.type === 'new' ? 'new-token' : alert.type;
+  el.className = 'alert-item ' + tc;
+
+  const typeLabels = { whale: 'WHALE', new: 'NEW LISTING', large: 'LARGE TRADE', trending: 'TRENDING' };
+  const tl = typeLabels[alert.type] || alert.type.toUpperCase();
+
+  let body = '';
+
+  if (alert.type === 'whale' || alert.type === 'large') {
+    body = `
+      <div class="atop">
+        <span class="atype ${tc}">${tl}</span>
+        <span class="atime">${alert.time}</span>
+      </div>
+      <div class="amain">
+        <span class="asym">${alert.from}</span>
+        <span class="arr">→</span>
+        <span class="asym">${alert.to}</span>
+        <span class="avol ${alert.isBuy ? 'up' : 'dn'}" style="margin-left:6px">${fmt(alert.volumeUSD)}</span>
+      </div>
+      <div class="asub">
+        <span>wallet <span style="color:var(--accent2)">${fmtAddr(alert.owner)}</span></span>
+        ${sourcePill(alert.source)}
+        <span>${alert.isBuy ? '▲ BUY' : '▼ SELL'}</span>
+        ${alert.txHash ? `<span><a href="https://solscan.io/tx/${alert.txHash}" target="_blank" style="color:var(--text3);text-decoration:none;">solscan ↗</a></span>` : ''}
+      </div>`;
+  } else if (alert.type === 'new') {
+    body = `
+      <div class="atop">
+        <span class="atype new-token">NEW LISTING</span>
+        <span class="atime">${alert.time}</span>
+      </div>
+      <div class="amain">
+        <span class="asym">${alert.symbol}</span>
+        ${alert.name && alert.name !== alert.symbol ? `<span style="color:var(--text2);font-size:0.8rem">${alert.name}</span>` : ''}
+        <span class="avol ne" style="margin-left:6px">liq ${fmt(alert.liquidity)}</span>
+      </div>
+      <div class="asub">
+        <span>addr <span style="color:var(--accent2)">${fmtAddr(alert.address)}</span></span>
+        ${sourcePill(alert.source)}
+        <a href="https://birdeye.so/token/${alert.address}?chain=solana" target="_blank" style="color:var(--text3);text-decoration:none;">birdeye ↗</a>
+      </div>`;
+  } else if (alert.type === 'trending') {
+    const chg = alert.change24h;
+    const chgStr = (chg > 0 ? '+' : '') + chg.toFixed(1) + '%';
+    body = `
+      <div class="atop">
+        <span class="atype trending">TRENDING</span>
+        <span class="atime">${alert.time}</span>
+      </div>
+      <div class="amain">
+        <span class="asym">${alert.symbol}</span>
+        <span class="avol ${chg > 0 ? 'up' : 'dn'}" style="margin-left:6px">${chgStr} 24h</span>
+        <span style="font-family:var(--mono);font-size:0.78rem;color:var(--text2)">$${alert.price?.toFixed(6) || '—'}</span>
+      </div>
+      <div class="asub">
+        <span>vol 24h ${fmt(alert.volume24h)}</span>
+        <a href="https://birdeye.so/token/${alert.address}?chain=solana" target="_blank" style="color:var(--text3);text-decoration:none;">birdeye ↗</a>
+      </div>`;
+  }
+
+  el.innerHTML = body;
+  if (prepend) {
+    feed.insertBefore(el, feed.firstChild);
+  } else {
+    feed.appendChild(el);
+  }
+
+  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
+}
+
+// ─── UI controls ──────────────────────────────────────────────────────────────
+function handleConnect() {
+  if (isLive) {
+    disconnect();
+    return;
+  }
+  const key = document.getElementById('apiInput').value.trim();
+  if (!key) {
+    startDemoMode();
+    return;
+  }
+  apiKey = key;
+  connect();
+}
+
+function connect() {
+  isLive = true;
+  isDemoMode = false;
+  stopDemoMode();
+  document.getElementById('infoBanner').classList.add('hidden');
+  document.getElementById('connectBtn').textContent = 'DISCONNECT';
+  document.getElementById('connectBtn').classList.add('dis');
+  setStatus('loading', 'FETCHING…');
+  startPolling();
+}
+
+function disconnect() {
+  isLive = false;
+  stopPolling();
+  setStatus('off', 'DISCONNECTED');
+  document.getElementById('connectBtn').textContent = 'CONNECT';
+  document.getElementById('connectBtn').classList.remove('dis');
+}
+
+function setStatus(cls, text) {
+  const b = document.getElementById('statusBadge');
+  b.className = 'status-badge ' + cls;
+  b.textContent = text;
+}
+
+function updateThresh(type, val) {
+  if (type === 'whale') {
+    whaleThresh = parseInt(val);
+    document.getElementById('whaleTreshVal').textContent = fmt(whaleThresh);
+  } else {
+    largeThresh = parseInt(val);
+    document.getElementById('largeTreshVal').textContent = fmt(largeThresh);
+  }
+}
+
+function updatePollInterval(val) {
+  pollInterval = parseInt(val);
+  document.getElementById('pollVal').textContent = val + 's';
+  if (isLive && !isDemoMode) startPolling();
+}
+
+function toggleFilter(type) {
+  filters[type] = !filters[type];
+  const tog = document.getElementById('ftog-' + type);
+  tog.classList.toggle('on', filters[type]);
+  tog.classList.toggle('off', !filters[type]);
+  rebuildFeed();
 }
 
 function switchTab(tab) {
   currentTab = tab;
-  ['all','whale','new','large'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  ['all','whale','new','large','trending'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('act', t === tab);
   });
   rebuildFeed();
 }
 
 function rebuildFeed() {
-  const container = document.getElementById('feedContainer');
-  container.innerHTML = '';
-  const filtered = allAlerts.filter(a => alertMatchesTab(a) && alertPassesFilters(a));
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  const filtered = allAlerts.filter(a => filters[a.type] && matchesTab(a));
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state" id="emptyState"><div class="empty-icon">◎</div><div class="empty-label">NO ALERTS FOR THIS FILTER</div></div>';
+    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-label">NO ALERTS FOR THIS FILTER</div></div>';
     return;
   }
-  filtered.forEach(a => {
-    // render without filter check (already filtered)
-    const saved = currentTab;
-    renderAlertDirect(a);
-  });
-}
-
-function renderAlertDirect(alert) {
-  const el = document.createElement('div');
-  el.className = `alert-item ${alert.type === 'new' ? 'new-token' : alert.type}`;
-
-  let labelClass = alert.type === 'new' ? 'new-token' : alert.type;
-  let labelText = alert.type === 'whale' ? 'WHALE' : alert.type === 'new' ? 'NEW LISTING' : 'LARGE TRADE';
-  let srcLabel = SOURCE_LABELS[alert.source] || alert.source;
-  let srcPillClass = alert.source === 'pump_dot_fun' ? 'pump' : alert.source === 'raydium' ? 'raydium' : 'meteora';
-
-  let body = '';
-  if (alert.type === 'whale') {
-    body = `<div class="alert-top"><span class="alert-type ${labelClass}">${labelText}</span><span class="alert-time">${alert.time}</span></div><div class="alert-main"><span class="alert-symbol">${alert.symbol}</span><span class="alert-arrow">←</span><span class="alert-symbol" style="color:var(--text2)">SOL</span><span class="alert-vol up" style="margin-left:8px">${fmt(alert.volumeUSD)}</span></div><div class="alert-sub"><span>wallet <span style="color:var(--accent2)">${fmtAddr(alert.owner)}</span></span><span><span class="pill ${srcPillClass}">${srcLabel}</span></span></div>`;
-  } else if (alert.type === 'new') {
-    body = `<div class="alert-top"><span class="alert-type ${labelClass}">${labelText}</span><span class="alert-time">${alert.time}</span></div><div class="alert-main"><span class="alert-symbol">${alert.symbol}</span><span class="alert-vol neutral" style="margin-left:8px">liq ${fmt(alert.liquidity)}</span></div><div class="alert-sub"><span>addr <span style="color:var(--accent2)">${fmtAddr(alert.address)}</span></span><span><span class="pill ${srcPillClass}">${srcLabel}</span></span></div>`;
-  } else {
-    body = `<div class="alert-top"><span class="alert-type ${labelClass}">${labelText}</span><span class="alert-time">${alert.time}</span></div><div class="alert-main"><span class="alert-symbol">${alert.from}</span><span class="alert-arrow">→</span><span class="alert-symbol">${alert.to}</span><span class="alert-vol ${alert.isBuy ? 'up' : 'down'}" style="margin-left:8px">${fmt(alert.volumeUSD)}</span></div><div class="alert-sub"><span>token <span style="color:var(--accent2)">${alert.symbol}</span></span><span><span class="pill ${srcPillClass}">${srcLabel}</span></span></div>`;
-  }
-  el.innerHTML = body;
-  document.getElementById('feedContainer').appendChild(el);
-}
-
-function toggleFilter(type) {
-  filters[type] = !filters[type];
-  document.getElementById('filter-' + type).classList.toggle('on', filters[type]);
-  rebuildFeed();
-}
-
-function toggleSource(src) {
-  sources[src] = !sources[src];
-  document.getElementById('source-' + src).classList.toggle('on', sources[src]);
-}
-
-function updateThreshold(type, val) {
-  if (type === 'minTrade') {
-    minTrade = parseInt(val);
-    document.getElementById('minTradeVal').textContent = fmt(minTrade);
-    if (isConnected && !isDemoMode) reconnectWS();
-  } else {
-    minLiq = parseInt(val);
-    document.getElementById('minLiqVal').textContent = fmt(minLiq);
-    if (isConnected && !isDemoMode) reconnectWS();
-  }
+  filtered.forEach(a => renderAlertToDOM(a, false));
 }
 
 function clearFeed() {
   allAlerts = [];
+  seenTxHashes.clear();
+  seenNewTokens.clear();
   stats = { total: 0, whale: 0, new: 0, large: 0 };
   updateStats();
-  const container = document.getElementById('feedContainer');
-  container.innerHTML = '<div class="empty-state" id="emptyState"><div class="empty-icon">◎</div><div class="empty-label">FEED CLEARED</div></div>';
+  document.getElementById('feed').innerHTML = '<div class="empty-state" id="emptyState"><div class="empty-icon">◎</div><div class="empty-label">FEED CLEARED</div></div>';
 }
 
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  document.getElementById('soundIcon').textContent = soundEnabled ? '🔊' : '🔈';
-  document.getElementById('soundLabel').textContent = soundEnabled ? 'Alert sounds on' : 'Alert sounds off';
+function showError(msg) {
+  const el = document.createElement('div');
+  el.className = 'error-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
 }
 
-function playBeep(type) {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = type === 'whale' ? 880 : type === 'new' ? 660 : 440;
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-  } catch(e) {}
-}
+// ─── Demo mode ─────────────────────────────────────────────────────────────────
+const DEMO_TOKENS = ['BONK','JUP','WIF','PYTH','RNDR','MEME','SAMO','KWEEN','RAY','BOME'];
+const DEMO_SOURCES = ['pump_dot_fun','raydium','meteora','orca','lifinity'];
+function raddr() { return Array.from({length:44},()=>'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopq'[Math.floor(Math.random()*48)]).join(''); }
+function rand(a,b) { return Math.random()*(b-a)+a; }
+function pick(a) { return a[Math.floor(Math.random()*a.length)]; }
 
-// Ticker
-function buildTicker() {
-  const tickers = [
-    { sym: 'SOL', price: '$148.32', chg: '+2.4%', up: true },
-    { sym: 'BTC', price: '$87,420', chg: '+1.1%', up: true },
-    { sym: 'ETH', price: '$3,211', chg: '-0.3%', up: false },
-    { sym: 'JUP', price: '$1.24', chg: '+5.2%', up: true },
-    { sym: 'BONK', price: '$0.0000182', chg: '+8.7%', up: true },
-    { sym: 'WIF', price: '$2.87', chg: '-1.2%', up: false },
-    { sym: 'RAY', price: '$3.42', chg: '+3.1%', up: true },
-    { sym: 'PYTH', price: '$0.412', chg: '-0.8%', up: false },
-  ];
-  const inner = document.getElementById('tickerInner');
-  let html = '';
-  // duplicate for seamless loop
-  for (let i = 0; i < 2; i++) {
-    tickers.forEach(t => {
-      html += `<span class="ticker-item">${t.sym} <span style="color:var(--text)">${t.price}</span> <span class="${t.up ? 'up' : 'down'}">${t.chg}</span></span>`;
-    });
-  }
-  inner.innerHTML = html;
-}
-
-buildTicker();
-
-// WebSocket logic
-function setStatus(s) {
-  const badge = document.getElementById('statusBadge');
-  badge.className = 'status-badge ' + s;
-  badge.textContent = s.toUpperCase();
-}
-
-function toggleConnection() {
-  if (isConnected) {
-    disconnect();
-  } else {
-    connect();
-  }
-}
-
-function connect() {
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
-
-  if (!apiKey) {
-    startDemoMode();
-    return;
-  }
-
-  isDemoMode = false;
-  document.getElementById('demoBanner').classList.add('hidden');
-  setStatus('connecting');
-  document.getElementById('connectBtn').textContent = 'CONNECTING…';
-
-  try {
-    connectWhaleWS(apiKey);
-    connectNewListingWS(apiKey);
-    connectLargeTradeWS(apiKey);
-  } catch(e) {
-    console.error(e);
-    setStatus('disconnected');
-    document.getElementById('connectBtn').textContent = 'CONNECT';
-  }
-}
-
-let wsSockets = [];
-
-function connectWhaleWS(apiKey) {
-  const wsUrl = `wss://public-api.birdeye.so/socket/solana?x-api-key=${apiKey}`;
-  const socket = new WebSocket(wsUrl, 'echo-protocol');
-  wsSockets.push(socket);
-
-  socket.onopen = () => {
-    socket.send(JSON.stringify({
-      type: 'SUBSCRIBE_LARGE_TRADE_TXS',
-      min_volume: minTrade * 5 // whale threshold = 5x min trade
-    }));
-    setStatus('connected');
-    isConnected = true;
-    document.getElementById('connectBtn').textContent = 'DISCONNECT';
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'TXS_LARGE_TRADE_DATA') {
-        const d = msg.data;
-        const vol = d.volumeUSD;
-        const isWhale = vol >= minTrade * 5;
-        processAlert({
-          type: isWhale ? 'whale' : 'large',
-          symbol: d.to.symbol,
-          name: d.to.symbol,
-          address: d.to.address,
-          from: d.from.symbol,
-          to: d.to.symbol,
-          volumeUSD: vol,
-          isBuy: d.from.symbol === 'SOL' || d.from.symbol === 'USDC',
-          owner: d.owner,
-          source: d.source,
-          time: now(),
-        });
-      }
-    } catch(e) {}
-  };
-
-  socket.onclose = () => {
-    if (isConnected) {
-      isConnected = false;
-      setStatus('disconnected');
-      document.getElementById('connectBtn').textContent = 'CONNECT';
-    }
-  };
-
-  socket.onerror = () => {
-    setStatus('disconnected');
-    document.getElementById('connectBtn').textContent = 'CONNECT';
-  };
-}
-
-function connectNewListingWS(apiKey) {
-  const wsUrl = `wss://public-api.birdeye.so/socket/solana?x-api-key=${apiKey}`;
-  const socket = new WebSocket(wsUrl, 'echo-protocol');
-  wsSockets.push(socket);
-
-  socket.onopen = () => {
-    socket.send(JSON.stringify({
-      type: 'SUBSCRIBE_TOKEN_NEW_LISTING',
-      meme_platform_enabled: true,
-      min_liquidity: minLiq,
-      sources: ['pump_dot_fun', 'meteora_dynamic_bonding_curve', 'raydium']
-    }));
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'TOKEN_NEW_LISTING_DATA') {
-        const d = msg.data;
-        processAlert({
-          type: 'new',
-          symbol: d.symbol,
-          name: d.name,
-          address: d.address,
-          liquidity: parseFloat(d.liquidity),
-          source: 'pump_dot_fun',
-          time: now(),
-        });
-      }
-    } catch(e) {}
-  };
-}
-
-function connectLargeTradeWS(apiKey) {
-  const wsUrl = `wss://public-api.birdeye.so/socket/solana?x-api-key=${apiKey}`;
-  const socket = new WebSocket(wsUrl, 'echo-protocol');
-  wsSockets.push(socket);
-
-  socket.onopen = () => {
-    socket.send(JSON.stringify({
-      type: 'SUBSCRIBE_LARGE_TRADE_TXS',
-      min_volume: minTrade,
-      max_volume: minTrade * 5
-    }));
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'TXS_LARGE_TRADE_DATA') {
-        const d = msg.data;
-        processAlert({
-          type: 'large',
-          symbol: d.to.symbol,
-          name: d.to.symbol,
-          address: d.to.address,
-          from: d.from.symbol,
-          to: d.to.symbol,
-          volumeUSD: d.volumeUSD,
-          isBuy: d.from.symbol === 'SOL' || d.from.symbol === 'USDC',
-          owner: d.owner,
-          source: d.source,
-          time: now(),
-        });
-      }
-    } catch(e) {}
-  };
-}
-
-function disconnect() {
-  wsSockets.forEach(s => { try { s.close(); } catch(e) {} });
-  wsSockets = [];
-  isConnected = false;
-  isDemoMode = false;
-  setStatus('disconnected');
-  document.getElementById('connectBtn').textContent = 'CONNECT';
-  if (demoInterval) { clearInterval(demoInterval); demoInterval = null; }
-}
-
-function reconnectWS() {
-  wsSockets.forEach(s => { try { s.close(); } catch(e) {} });
-  wsSockets = [];
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
-  connectWhaleWS(apiKey);
-  connectNewListingWS(apiKey);
-  connectLargeTradeWS(apiKey);
+function genDemoAlert() {
+  const types = ['whale','new','large','trending'], type = pick(types), tok = pick(DEMO_TOKENS), src = pick(DEMO_SOURCES);
+  if (type === 'whale') return { type:'whale', symbol:tok, from:'SOL', to:tok, volumeUSD:rand(60000,600000), isBuy:Math.random()>0.4, owner:raddr(), source:src, txHash:raddr(), time:nowt() };
+  if (type === 'new') return { type:'new', symbol:'$'+pick(['MOON','FROG','CAT','CHAD','APE','WAGMI','GG','REKT']), name:'New Token', address:raddr(), liquidity:rand(1000,40000), source:src, time:nowt() };
+  if (type === 'trending') return { type:'trending', symbol:tok, address:raddr(), price:rand(0.0001,200), change24h:rand(-40,80), volume24h:rand(500000,10000000), time:nowt() };
+  return { type:'large', symbol:tok, from:Math.random()>0.5?'SOL':tok, to:Math.random()>0.5?tok:'USDC', volumeUSD:rand(5000,50000), isBuy:Math.random()>0.5, owner:raddr(), source:src, txHash:raddr(), time:nowt() };
 }
 
 function startDemoMode() {
   isDemoMode = true;
-  isConnected = true;
-  document.getElementById('demoBanner').classList.remove('hidden');
-  setStatus('connected');
+  isLive = true;
+  document.getElementById('infoBanner').className = 'info-bar demo';
+  document.getElementById('infoBanner').textContent = '⚡ DEMO MODE — Simulated signals. Enter your Birdeye API key to go live.';
   document.getElementById('connectBtn').textContent = 'DISCONNECT';
-
-  // fire a few immediately
-  for (let i = 0; i < 4; i++) {
-    setTimeout(() => processAlert(generateDemoAlert()), i * 400);
-  }
-
-  // then stream continuously
-  demoInterval = setInterval(() => {
-    if (Math.random() > 0.3) processAlert(generateDemoAlert());
-  }, 2200);
+  document.getElementById('connectBtn').classList.add('dis');
+  setStatus('live', 'DEMO LIVE');
+  for (let i = 0; i < 5; i++) setTimeout(() => processAlert(genDemoAlert()), i * 450);
+  demoInterval = setInterval(() => { if (Math.random() > 0.3) processAlert(genDemoAlert()); }, 2500);
 }
 
-// Auto-start demo
+function stopDemoMode() {
+  if (demoInterval) { clearInterval(demoInterval); demoInterval = null; }
+}
+
+// ─── Ticker ───────────────────────────────────────────────────────────────────
+function buildTicker() {
+  const items = [
+    {s:'SOL',p:'$148.32',c:'+2.4%',u:1},{s:'BTC',p:'$87,420',c:'+1.1%',u:1},
+    {s:'ETH',p:'$3,211',c:'-0.3%',u:0},{s:'JUP',p:'$1.24',c:'+5.2%',u:1},
+    {s:'BONK',p:'$0.0000182',c:'+8.7%',u:1},{s:'WIF',p:'$2.87',c:'-1.2%',u:0},
+    {s:'RAY',p:'$3.42',c:'+3.1%',u:1},{s:'PYTH',p:'$0.412',c:'-0.8%',u:0},
+  ];
+  let h = '';
+  for (let i = 0; i < 2; i++) items.forEach(t => h += `<span class="titem">${t.s} <span style="color:var(--text)">${t.p}</span> <span class="${t.u?'up':'down'}">${t.c}</span></span>`);
+  document.getElementById('tickerInner').innerHTML = h;
+}
+buildTicker();
+
+// Start demo automatically
 startDemoMode();
 </script>
 </body>
