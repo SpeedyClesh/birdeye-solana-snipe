@@ -3,717 +3,1281 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SolanaSnipe — Real-Time Onchain Alert Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<title>SolanaSnipe — Real-Time Alert Dashboard</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
   :root {
-    --bg: #060810;--bg2: #0c1020;--bg3: #131829;
-    --border: rgba(99,180,255,0.12);--border2: rgba(99,180,255,0.22);
-    --text: #e8eef8;--text2: #7a90b8;--text3: #3d5070;
-    --accent: #4af3b0;--accent2: #3dd6f5;--warn: #f5c842;--danger: #ff5c5c;--whale: #b06cff;
-    --mono: 'JetBrains Mono',monospace;--sans: 'Syne',sans-serif;
+    --bg: #0a0c0f;
+    --bg2: #0f1217;
+    --bg3: #161b22;
+    --bg4: #1c2330;
+    --border: #21262d;
+    --border2: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #484f58;
+    --green: #3fb950;
+    --green-dim: #1a3a1f;
+    --red: #f85149;
+    --red-dim: #3a1a1a;
+    --blue: #388bfd;
+    --blue-dim: #1a2a4a;
+    --amber: #d29922;
+    --amber-dim: #3a2a0a;
+    --purple: #bc8cff;
+    --teal: #39d353;
+    --accent: #58a6ff;
+    --sol: #9945ff;
+    --sol-dim: #2a1a4a;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-sans: 'IBM Plex Sans', sans-serif;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
-  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:999;}
 
-  header{border-bottom:1px solid var(--border);background:rgba(6,8,16,0.97);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;}
-  .logo{font-family:var(--sans);font-weight:800;font-size:1.1rem;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;}
-  .logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent);animation:pulse 2s ease infinite;}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
-  .hright{display:flex;align-items:center;gap:10px;}
-  .status-badge{font-family:var(--mono);font-size:0.68rem;padding:4px 10px;border-radius:4px;border:1px solid;transition:all 0.3s;}
-  .status-badge.live{border-color:var(--accent);color:var(--accent);background:rgba(74,243,176,0.08);}
-  .status-badge.off{border-color:var(--text3);color:var(--text3);background:transparent;}
-  .status-badge.loading{border-color:var(--warn);color:var(--warn);background:rgba(245,200,66,0.08);animation:blink 1s step-end infinite;}
-  .status-badge.error{border-color:var(--danger);color:var(--danger);background:rgba(255,92,92,0.08);}
-  @keyframes blink{50%{opacity:0.4;}}
-  .api-input{background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.72rem;padding:6px 10px;border-radius:4px;width:230px;outline:none;transition:border-color 0.2s;}
-  .api-input:focus{border-color:var(--accent2);}
-  .api-input::placeholder{color:var(--text3);}
-  .connect-btn{background:var(--accent);color:#060810;border:none;font-family:var(--sans);font-weight:700;font-size:0.75rem;padding:7px 16px;border-radius:4px;cursor:pointer;letter-spacing:0.04em;transition:opacity 0.2s;}
-  .connect-btn:hover{opacity:0.85;}
-  .connect-btn.dis{background:var(--danger);color:#fff;}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  .info-bar{background:rgba(61,214,245,0.07);border-bottom:1px solid rgba(61,214,245,0.15);padding:5px 2rem;font-family:var(--mono);font-size:0.65rem;color:var(--accent2);display:flex;align-items:center;gap:8px;}
-  .info-bar.demo{background:rgba(245,200,66,0.07);border-bottom-color:rgba(245,200,66,0.2);color:var(--warn);}
-  .info-bar.hidden{display:none;}
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-  .ticker{background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 0;overflow:hidden;white-space:nowrap;font-family:var(--mono);font-size:0.67rem;color:var(--text2);}
-  .ticker-inner{display:inline-flex;animation:tick 35s linear infinite;}
-  .titem{display:inline-flex;align-items:center;gap:5px;padding:0 18px;border-right:1px solid var(--border);}
-  .up{color:var(--accent);}.down{color:var(--danger);}
-  @keyframes tick{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+  /* ── TICKER ── */
+  .ticker-rail {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    height: 34px;
+    overflow: hidden;
+    position: relative;
+  }
+  .ticker-rail::before, .ticker-rail::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 60px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ticker-rail::before { left: 0; background: linear-gradient(to right, var(--bg2), transparent); }
+  .ticker-rail::after  { right: 0; background: linear-gradient(to left, var(--bg2), transparent); }
 
-  .layout{display:grid;grid-template-columns:272px 1fr;min-height:calc(100vh - 100px);}
-  .sidebar{border-right:1px solid var(--border);background:var(--bg2);padding:1.25rem;overflow-y:auto;}
-  .slabel{font-family:var(--mono);font-size:0.6rem;letter-spacing:0.12em;color:var(--text3);text-transform:uppercase;margin-bottom:0.65rem;}
-  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:1.3rem;}
-  .scard{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:11px;}
-  .scard-label{font-family:var(--mono);font-size:0.58rem;color:var(--text3);letter-spacing:0.08em;margin-bottom:3px;}
-  .scard-val{font-family:var(--mono);font-size:1.05rem;font-weight:700;}
-  .scard-val.g{color:var(--accent);}.scard-val.p{color:var(--whale);}.scard-val.y{color:var(--warn);}.scard-val.r{color:var(--danger);}
+  .ticker-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 100%;
+    animation: ticker-scroll 40s linear infinite;
+    width: max-content;
+  }
+  .ticker-track:hover { animation-play-state: paused; }
 
-  .filter-block{margin-bottom:1.3rem;}
-  .frow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;}
-  .frow:last-child{border-bottom:none;}
-  .frow:hover{opacity:0.8;}
-  .fname{font-size:0.78rem;display:flex;align-items:center;gap:7px;}
-  .fdot{width:6px;height:6px;border-radius:50%;}
-  .tog{width:30px;height:17px;border-radius:9px;position:relative;transition:background 0.2s;border:1px solid var(--border2);}
-  .tog.on{background:var(--accent);border-color:var(--accent);}
-  .tog.off{background:var(--bg3);}
-  .tog::after{content:'';position:absolute;top:2px;width:11px;height:11px;background:#fff;border-radius:50%;transition:left 0.2s;}
-  .tog.on::after{left:15px;}.tog.off::after{left:2px;}
+  @keyframes ticker-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
 
-  .thresh-block{margin-bottom:1.3rem;}
-  .thresh-row{display:flex;justify-content:space-between;margin-bottom:5px;}
-  .thresh-label{font-size:0.76rem;color:var(--text2);}
-  .thresh-val{font-family:var(--mono);font-size:0.72rem;color:var(--warn);}
-  input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg3);border-radius:2px;outline:none;margin:3px 0 12px;}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--warn);border-radius:50%;cursor:pointer;}
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+    border-right: 1px solid var(--border);
+    height: 100%;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: default;
+    transition: background 0.2s;
+  }
+  .ticker-item:hover { background: var(--bg3); }
+  .ticker-item .sym { color: var(--text); font-weight: 600; }
+  .ticker-item .price { color: var(--text2); }
+  .ticker-item .chg.up { color: var(--green); }
+  .ticker-item .chg.dn { color: var(--red); }
+  .ticker-item .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .ticker-item .dot.up { background: var(--green); animation: pulse-green 2s ease-in-out infinite; }
+  .ticker-item .dot.dn { background: var(--red); }
 
-  .next-poll{font-family:var(--mono);font-size:0.62rem;color:var(--text3);display:flex;align-items:center;gap:6px;padding:8px 0;}
-  .poll-bar{flex:1;height:2px;background:var(--bg3);border-radius:1px;overflow:hidden;}
-  .poll-fill{height:100%;background:var(--accent2);border-radius:1px;transition:width 0.1s linear;}
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
 
-  .feed-header{border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:44px;background:var(--bg);}
-  .tabs{display:flex;}
-  .tab{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.06em;color:var(--text3);padding:0 14px;height:44px;display:flex;align-items:center;cursor:pointer;border-bottom:2px solid transparent;transition:color 0.2s,border-color 0.2s;}
-  .tab.act{color:var(--accent2);border-bottom-color:var(--accent2);}
-  .tab:hover:not(.act){color:var(--text2);}
-  .hdr-right{display:flex;align-items:center;gap:10px;}
-  .clear-btn{font-family:var(--mono);font-size:0.62rem;color:var(--text3);background:none;border:1px solid var(--border);padding:4px 9px;border-radius:3px;cursor:pointer;transition:color 0.2s;}
-  .clear-btn:hover{color:var(--text2);}
-  .api-call-count{font-family:var(--mono);font-size:0.62rem;color:var(--text3);}
+  /* ── NAVBAR ── */
+  .navbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--sol);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
 
-  .feed{overflow-y:auto;height:calc(100vh - 156px);padding:0.85rem;}
-  .feed::-webkit-scrollbar{width:3px;}
-  .feed::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+  .nav-divider { width: 1px; height: 28px; background: var(--border); }
 
-  .alert-item{border:1px solid var(--border);border-radius:6px;padding:11px 13px;margin-bottom:7px;background:var(--bg2);animation:slideIn 0.3s cubic-bezier(0.16,1,0.3,1);}
-  .alert-item:hover{border-color:var(--border2);}
-  .alert-item.whale{border-left:3px solid var(--whale);}
-  .alert-item.new-token{border-left:3px solid var(--accent);}
-  .alert-item.large{border-left:3px solid var(--warn);}
-  .alert-item.trending{border-left:3px solid var(--accent2);}
-  @keyframes slideIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  .api-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .api-input {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    width: 280px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--text3); }
 
-  .atop{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
-  .atype{font-family:var(--mono);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;padding:2px 7px;border-radius:3px;text-transform:uppercase;}
-  .atype.whale{background:rgba(176,108,255,0.15);color:var(--whale);}
-  .atype.new-token{background:rgba(74,243,176,0.12);color:var(--accent);}
-  .atype.large{background:rgba(245,200,66,0.12);color:var(--warn);}
-  .atype.trending{background:rgba(61,214,245,0.12);color:var(--accent2);}
-  .atime{font-family:var(--mono);font-size:0.62rem;color:var(--text3);}
+  .claude-input {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    width: 280px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .claude-input:focus { border-color: var(--purple); }
+  .claude-input::placeholder { color: var(--text3); }
 
-  .amain{display:flex;align-items:baseline;gap:7px;margin-bottom:4px;flex-wrap:wrap;}
-  .asym{font-weight:700;font-size:0.92rem;letter-spacing:-0.01em;}
-  .arr{font-size:0.78rem;color:var(--text3);margin:0 1px;}
-  .avol{font-family:var(--mono);font-size:0.82rem;font-weight:700;}
-  .avol.up{color:var(--accent);}.avol.dn{color:var(--danger);}.avol.ne{color:var(--warn);}
+  .key-label {
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
 
-  .asub{font-family:var(--mono);font-size:0.65rem;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-  .pill{display:inline-block;font-family:var(--mono);font-size:0.58rem;padding:2px 6px;border-radius:3px;letter-spacing:0.04em;}
-  .pill.pump{background:rgba(245,200,66,0.14);color:var(--warn);}
-  .pill.ray{background:rgba(61,214,245,0.11);color:var(--accent2);}
-  .pill.met{background:rgba(176,108,255,0.11);color:var(--whale);}
-  .pill.orca{background:rgba(74,243,176,0.11);color:var(--accent);}
-  .pill.other{background:rgba(122,144,184,0.15);color:var(--text2);}
+  .btn {
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--sol); border-color: var(--sol); color: #fff; }
+  .btn.primary:hover { background: #7b2fe8; border-color: #7b2fe8; }
+  .btn.danger { border-color: var(--red); color: var(--red); }
 
-  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:260px;gap:10px;color:var(--text3);}
-  .empty-icon{font-size:1.8rem;opacity:0.35;}
-  .empty-label{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;}
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.live { background: var(--green); animation: pulse-green 2s ease-in-out infinite; }
+  .status-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+    white-space: nowrap;
+  }
 
-  .error-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:rgba(255,92,92,0.15);border:1px solid rgba(255,92,92,0.4);color:var(--danger);font-family:var(--mono);font-size:0.7rem;padding:10px 16px;border-radius:5px;z-index:200;animation:slideIn 0.3s ease;max-width:320px;}
+  /* ── LAYOUT ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    height: calc(100vh - 90px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-section h3 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  /* stat cards */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat-card .stat-label {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .stat-card .stat-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-card.whale .stat-value { color: var(--amber); }
+  .stat-card.new .stat-value   { color: var(--green); }
+  .stat-card.large .stat-value { color: var(--blue); }
+
+  /* filters */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-row:last-child { border-bottom: none; }
+  .filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+  }
+  .filter-icon { font-size: 14px; width: 20px; text-align: center; }
+  .toggle {
+    width: 32px; height: 18px;
+    background: var(--border2);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    border: none;
+    outline: none;
+  }
+  .toggle.on { background: var(--sol); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(14px); }
+
+  /* threshold inputs */
+  .threshold-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+  }
+  .threshold-label {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+  }
+  .threshold-val {
+    font-size: 12px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    width: 90px;
+    text-align: right;
+    outline: none;
+    color: var(--amber);
+  }
+
+  /* poll info */
+  .poll-info {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .poll-row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .poll-row span:last-child { color: var(--text); }
+
+  .sidebar-btn-row { display: flex; gap: 8px; }
+
+  /* ── MAIN PANEL ── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* tabs */
+  .tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 12px 16px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text3);
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active {
+    color: var(--text);
+    background: var(--bg);
+    border-color: var(--border);
+  }
+  .tab .badge {
+    background: var(--bg4);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: var(--text2);
+    min-width: 18px;
+    text-align: center;
+  }
+  .tab.active .badge { background: var(--sol-dim); color: var(--sol); }
+
+  /* alerts list */
+  .alerts-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    padding: 60px;
+    text-align: center;
+  }
+  .empty-state .big { font-size: 40px; }
+  .empty-state .title { font-size: 14px; color: var(--text2); }
+  .empty-state .sub { font-size: 12px; }
+
+  /* alert card */
+  .alert-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    animation: slide-in 0.3s ease-out;
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .alert-card:hover { border-color: var(--border2); }
+  .alert-card.whale { border-left: 3px solid var(--amber); }
+  .alert-card.new   { border-left: 3px solid var(--green); }
+  .alert-card.large { border-left: 3px solid var(--blue); }
+  .alert-card.trending { border-left: 3px solid var(--purple); }
+
+  .alert-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+  .alert-type-badge {
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-whale   { background: var(--amber-dim); color: var(--amber); }
+  .badge-new     { background: var(--green-dim); color: var(--green); }
+  .badge-large   { background: var(--blue-dim); color: var(--blue); }
+  .badge-trending{ background: var(--sol-dim); color: var(--sol); }
+
+  .severity-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sev-high   { background: var(--red); }
+  .sev-medium { background: var(--amber); }
+  .sev-low    { background: var(--green); }
+
+  .alert-token {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .alert-meta {
+    font-size: 12px;
+    color: var(--text2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .alert-price-change {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .alert-price-change.up { color: var(--green); }
+  .alert-price-change.dn { color: var(--red); }
+
+  .alert-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  /* AI summary section */
+  .ai-summary {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px;
+    background: var(--bg3);
+    display: none;
+  }
+  .alert-card.expanded .ai-summary { display: block; }
+
+  .ai-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ai-icon {
+    width: 16px; height: 16px;
+    background: var(--purple);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .ai-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .ai-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .action-pill {
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .action-buy     { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .action-watch   { background: var(--amber-dim); color: var(--amber); border-color: var(--amber); }
+  .action-avoid   { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+
+  .ai-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: var(--font-mono);
+  }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .summarize-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    background: var(--sol-dim);
+    border: 1px solid var(--sol);
+    color: var(--sol);
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: all 0.15s;
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .summarize-btn:hover { background: var(--sol); color: #fff; }
+
+  /* bottom toolbar */
+  .bottom-bar {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bottom-stats {
+    display: flex;
+    gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .bottom-stats span { color: var(--text2); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* flash animation for price updates */
+  @keyframes flash-green {
+    0%, 100% { background: transparent; }
+    50% { background: var(--green-dim); }
+  }
+  @keyframes flash-red {
+    0%, 100% { background: transparent; }
+    50% { background: var(--red-dim); }
+  }
+  .flash-up { animation: flash-green 0.6s ease-out; }
+  .flash-dn { animation: flash-red 0.6s ease-out; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo"><div class="logo-dot"></div>SolanaSnipe</div>
-  <div class="hright">
-    <span class="status-badge off" id="statusBadge">DISCONNECTED</span>
-    <input class="api-input" id="apiInput" type="password" placeholder="Paste Birdeye API key…">
-    <button class="connect-btn" id="connectBtn" onclick="handleConnect()">CONNECT</button>
+<!-- REAL-TIME PRICE TICKER -->
+<div class="ticker-rail">
+  <div class="ticker-track" id="tickerTrack">
+    <!-- Populated by JS, doubled for seamless loop -->
   </div>
-</header>
-
-<div class="info-bar demo" id="infoBanner">
-  ⚡ DEMO MODE — Enter your Birdeye API key above and click CONNECT to pull live Solana data via REST API (free tier).
 </div>
 
-<div class="ticker"><div class="ticker-inner" id="tickerInner"></div></div>
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="logo">
+    <div class="logo-icon">◎</div>
+    SolanaSnipe
+  </div>
+  <div class="nav-divider"></div>
+  <div class="api-input-wrap">
+    <span class="key-label">Birdeye:</span>
+    <input class="api-input" id="birdeyeKey" type="password" placeholder="Enter Birdeye API key…" />
+    <span class="key-label" style="margin-left:8px;">Claude:</span>
+    <input class="claude-input" id="claudeKey" type="password" placeholder="Enter Claude API key for AI summaries…" />
+  </div>
+  <div class="nav-divider"></div>
+  <div class="status-dot" id="statusDot"></div>
+  <span class="status-label" id="statusLabel">DISCONNECTED</span>
+  <button class="btn primary" id="connectBtn" onclick="toggleConnect()">CONNECT</button>
+</nav>
 
+<!-- LAYOUT -->
 <div class="layout">
   <!-- SIDEBAR -->
-  <div class="sidebar">
-    <p class="slabel">Live Stats</p>
-    <div class="sgrid">
-      <div class="scard"><div class="scard-label">TOTAL</div><div class="scard-val g" id="stTotal">0</div></div>
-      <div class="scard"><div class="scard-label">WHALE</div><div class="scard-val p" id="stWhale">0</div></div>
-      <div class="scard"><div class="scard-label">NEW TOKENS</div><div class="scard-val g" id="stNew">0</div></div>
-      <div class="scard"><div class="scard-label">LARGE TRADES</div><div class="scard-val y" id="stLarge">0</div></div>
-    </div>
-
-    <p class="slabel">Alert Filters</p>
-    <div class="filter-block">
-      <div class="frow" onclick="toggleFilter('whale')">
-        <span class="fname"><span class="fdot" style="background:var(--whale)"></span>Whale Wallets</span>
-        <div class="tog on" id="ftog-whale"></div>
-      </div>
-      <div class="frow" onclick="toggleFilter('new')">
-        <span class="fname"><span class="fdot" style="background:var(--accent)"></span>New Listings</span>
-        <div class="tog on" id="ftog-new"></div>
-      </div>
-      <div class="frow" onclick="toggleFilter('large')">
-        <span class="fname"><span class="fdot" style="background:var(--warn)"></span>Large Trades</span>
-        <div class="tog on" id="ftog-large"></div>
-      </div>
-      <div class="frow" onclick="toggleFilter('trending')">
-        <span class="fname"><span class="fdot" style="background:var(--accent2)"></span>Trending Tokens</span>
-        <div class="tog on" id="ftog-trending"></div>
+  <aside class="sidebar">
+    <!-- Stats -->
+    <div class="sidebar-section">
+      <h3>Live Stats</h3>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-card whale">
+          <div class="stat-label">Whale</div>
+          <div class="stat-value" id="statWhale">0</div>
+        </div>
+        <div class="stat-card new">
+          <div class="stat-label">New Tokens</div>
+          <div class="stat-value" id="statNew">0</div>
+        </div>
+        <div class="stat-card large">
+          <div class="stat-label">Large Trades</div>
+          <div class="stat-value" id="statLarge">0</div>
+        </div>
       </div>
     </div>
 
-    <p class="slabel">Min Trade Size (USD)</p>
-    <div class="thresh-block">
-      <div class="thresh-row">
-        <span class="thresh-label">Whale threshold</span>
-        <span class="thresh-val" id="whaleTreshVal">$50,000</span>
+    <!-- Filters -->
+    <div class="sidebar-section">
+      <h3>Alert Filters</h3>
+      <div class="filter-row">
+        <label class="filter-label"><span class="filter-icon">🐋</span>Whale Wallets</label>
+        <button class="toggle on" id="fWhale" onclick="toggleFilter(this)"></button>
       </div>
-      <input type="range" min="10000" max="500000" step="5000" value="50000" id="whaleSlider"
-        oninput="updateThresh('whale', this.value)">
-      <div class="thresh-row">
-        <span class="thresh-label">Large trade</span>
-        <span class="thresh-val" id="largeTreshVal">$5,000</span>
+      <div class="filter-row">
+        <label class="filter-label"><span class="filter-icon">🆕</span>New Listings</label>
+        <button class="toggle on" id="fNew" onclick="toggleFilter(this)"></button>
       </div>
-      <input type="range" min="1000" max="100000" step="1000" value="5000" id="largeSlider"
-        oninput="updateThresh('large', this.value)">
+      <div class="filter-row">
+        <label class="filter-label"><span class="filter-icon">💸</span>Large Trades</label>
+        <button class="toggle on" id="fLarge" onclick="toggleFilter(this)"></button>
+      </div>
+      <div class="filter-row">
+        <label class="filter-label"><span class="filter-icon">🔥</span>Trending</label>
+        <button class="toggle on" id="fTrending" onclick="toggleFilter(this)"></button>
+      </div>
     </div>
 
-    <p class="slabel">Poll Interval</p>
-    <div class="thresh-block">
-      <div class="thresh-row">
-        <span class="thresh-label">Refresh every</span>
-        <span class="thresh-val" id="pollVal">15s</span>
+    <!-- Thresholds -->
+    <div class="sidebar-section">
+      <h3>Thresholds</h3>
+      <div class="threshold-row">
+        <span class="threshold-label">Whale (USD)</span>
+        <input class="threshold-val" id="threshWhale" value="$50,000" />
       </div>
-      <input type="range" min="10" max="60" step="5" value="15" id="pollSlider"
-        oninput="updatePollInterval(this.value)">
+      <div class="threshold-row">
+        <span class="threshold-label">Large Trade</span>
+        <input class="threshold-val" id="threshLarge" value="$5,000" />
+      </div>
     </div>
 
-    <p class="slabel">Next Poll</p>
-    <div class="next-poll">
-      <span id="countdownTxt">—</span>
-      <div class="poll-bar"><div class="poll-fill" id="pollFill" style="width:0%"></div></div>
+    <!-- Poll info -->
+    <div class="sidebar-section">
+      <h3>Polling</h3>
+      <div class="poll-info">
+        <div class="poll-row"><span>Interval</span><span id="pollInterval">15s</span></div>
+        <div class="poll-row"><span>Next poll</span><span id="nextPoll">—</span></div>
+        <div class="poll-row"><span>API calls</span><span id="apiCalls">0</span></div>
+        <div class="poll-row"><span>Ticker refresh</span><span style="color:var(--green)">3s live</span></div>
+      </div>
     </div>
-  </div>
 
-  <!-- FEED -->
-  <div style="display:flex;flex-direction:column;background:var(--bg);">
-    <div class="feed-header">
-      <div class="tabs">
-        <div class="tab act" onclick="switchTab('all')" id="tab-all">ALL</div>
-        <div class="tab" onclick="switchTab('whale')" id="tab-whale">WHALE</div>
-        <div class="tab" onclick="switchTab('new')" id="tab-new">NEW LISTINGS</div>
-        <div class="tab" onclick="switchTab('large')" id="tab-large">LARGE TRADES</div>
-        <div class="tab" onclick="switchTab('trending')" id="tab-trending">TRENDING</div>
-      </div>
-      <div class="hdr-right">
-        <span class="api-call-count" id="apiCallCount">0 API calls</span>
-        <button class="clear-btn" onclick="clearFeed()">CLEAR</button>
+    <!-- Actions -->
+    <div class="sidebar-section">
+      <div class="sidebar-btn-row">
+        <button class="btn" onclick="clearAlerts()">Clear Alerts</button>
+        <button class="btn" onclick="loadDemoAlerts()">Demo Mode</button>
       </div>
     </div>
-    <div class="feed" id="feed">
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('all', this)">All <span class="badge" id="badgeAll">0</span></button>
+      <button class="tab" onclick="setTab('whale', this)">🐋 Whale <span class="badge" id="badgeWhale">0</span></button>
+      <button class="tab" onclick="setTab('new', this)">🆕 New Listings <span class="badge" id="badgeNew">0</span></button>
+      <button class="tab" onclick="setTab('large', this)">💸 Large Trades <span class="badge" id="badgeLarge">0</span></button>
+      <button class="tab" onclick="setTab('trending', this)">🔥 Trending <span class="badge" id="badgeTrending">0</span></button>
+    </div>
+
+    <!-- Alerts -->
+    <div class="alerts-area" id="alertsArea">
       <div class="empty-state" id="emptyState">
-        <div class="empty-icon">◎</div>
-        <div class="empty-label">ENTER API KEY AND CONNECT</div>
+        <div class="big">◎</div>
+        <div class="title">Waiting for signals…</div>
+        <div class="sub">Enter your Birdeye API key and click CONNECT<br>or hit Demo Mode to see sample alerts with AI summaries</div>
       </div>
     </div>
-  </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <div class="bottom-stats">
+        <div>Connected: <span id="connectedSince">—</span></div>
+        <div>Alerts: <span id="totalAlertsCount">0</span></div>
+        <div>AI Summaries: <span id="aiSummaryCount">0</span></div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">
+        ◎ SolanaSnipe v2.0 — AI-Enhanced
+      </div>
+    </div>
+  </main>
 </div>
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
-let apiKey = '';
-let isLive = false;
-let isDemoMode = false;
-let pollInterval = 15; // seconds
-let pollTimerId = null;
-let countdownTimerId = null;
-let pollCountdown = 0;
-let apiCallCount = 0;
-let whaleThresh = 50000;
-let largeThresh = 5000;
+// ── STATE ──
+let connected = false;
+let alerts = [];
 let currentTab = 'all';
-let filters = { whale: true, new: true, large: true, trending: true };
-let allAlerts = [];
-let seenTxHashes = new Set();
-let seenNewTokens = new Set();
-let stats = { total: 0, whale: 0, new: 0, large: 0 };
-let demoInterval = null;
+let apiCallCount = 0;
+let aiSummaryCount = 0;
+let pollTimer = null;
+let tickerData = [];
+let tickerPrices = {};
+let connectedAt = null;
+let nextPollAt = null;
 
-// Top Solana tokens to monitor for large trades
-const WATCH_TOKENS = [
-  { symbol: 'SOL',  address: 'So11111111111111111111111111111111111111112' },
-  { symbol: 'BONK', address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-  { symbol: 'JUP',  address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' },
-  { symbol: 'WIF',  address: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm' },
-  { symbol: 'PYTH', address: 'HZ1JovNiVvGrCNiiYWY1CX5hsm1mJX9yAh1SFRde9hP' },
-  { symbol: 'RAY',  address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R' },
+// ── DEMO DATA ──
+const DEMO_TOKENS = [
+  { sym: 'SOL',  addr: 'So11111111111111111111111111111111111111112', price: 148.32, change: 2.4 },
+  { sym: 'JUP',  addr: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', price: 0.8821, change: -1.1 },
+  { sym: 'BONK', addr: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', price: 0.0000218, change: 5.7 },
+  { sym: 'WIF',  addr: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', price: 1.234, change: -3.2 },
+  { sym: 'PYTH', addr: 'HZ1JovNiVvGrLNiTufe3JUkjladRFi8Ra1keE2hFMnBo', price: 0.3217, change: 0.8 },
+  { sym: 'RNDR', addr: 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof', price: 4.512, change: 1.9 },
+  { sym: 'RAY',  addr: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', price: 2.871, change: -0.5 },
+  { sym: 'ORCA', addr: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE',  price: 0.9134, change: 3.1 },
 ];
 
-const BASE_URL = 'https://public-api.birdeye.so';
+const DEMO_ALERTS = [
+  {
+    id: 1, type: 'whale', token: 'SOL', address: 'So111...1112',
+    meta: 'Wallet 7xK9...mQ2 bought 12,400 SOL (~$1.84M)',
+    price: 148.32, change: 2.4, volume: 1840000, time: new Date(Date.now() - 80000),
+    severity: 'high'
+  },
+  {
+    id: 2, type: 'new', token: 'MOONCAT',  address: 'MoOn...1234',
+    meta: 'New listing — liquidity $42K, 1,204 holders',
+    price: 0.00043, change: 187.2, volume: 42000, time: new Date(Date.now() - 200000),
+    severity: 'medium'
+  },
+  {
+    id: 3, type: 'large', token: 'BONK', address: 'DezX...B263',
+    meta: '$890K trade — 40.8B BONK sold in single tx',
+    price: 0.0000218, change: -4.2, volume: 890000, time: new Date(Date.now() - 340000),
+    severity: 'medium'
+  },
+  {
+    id: 4, type: 'trending', token: 'WIF', address: 'EKpQ...cjm',
+    meta: '#1 trending — 312% volume spike in last 15 min',
+    price: 1.234, change: 12.3, volume: 4200000, time: new Date(Date.now() - 510000),
+    severity: 'high'
+  },
+  {
+    id: 5, type: 'whale', token: 'JUP', address: 'JUPy...vCN',
+    meta: 'Wallet 3aB2...rR9 bought 980K JUP (~$864K)',
+    price: 0.8821, change: -0.8, volume: 864000, time: new Date(Date.now() - 720000),
+    severity: 'medium'
+  },
+  {
+    id: 6, type: 'new', token: 'SOLFROG', address: 'SFrg...9912',
+    meta: 'New listing — liquidity $8.1K, 89 holders',
+    price: 0.0000089, change: 2400, volume: 8100, time: new Date(Date.now() - 900000),
+    severity: 'low'
+  },
+];
 
-// ─── Formatting ───────────────────────────────────────────────────────────────
-function fmt(n) {
-  if (!n || isNaN(n)) return '$0';
-  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
-  return '$' + n.toFixed(0);
-}
-function fmtAddr(a) { return a ? a.slice(0, 5) + '…' + a.slice(-4) : '—'; }
-function nowt() {
-  return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-function sourcePill(src) {
-  if (!src) return '<span class="pill other">unknown</span>';
-  const s = src.toLowerCase();
-  if (s.includes('pump')) return '<span class="pill pump">pump.fun</span>';
-  if (s.includes('raydium')) return '<span class="pill ray">Raydium</span>';
-  if (s.includes('meteora')) return '<span class="pill met">Meteora</span>';
-  if (s.includes('orca')) return '<span class="pill orca">Orca</span>';
-  return `<span class="pill other">${src.slice(0, 10)}</span>`;
+const AI_SUMMARIES = {
+  1: { text: "A known accumulator wallet executed a $1.84M SOL purchase over 3 transactions in under 2 minutes — pattern matches early positioning before a Solana ecosystem announcement. Holder concentration is moderate with strong DEX liquidity backing the move.", action: "watch" },
+  2: { text: "MOONCAT launched with reasonable initial liquidity ($42K) and 1,204 early holders — healthy for a new listing. No freeze authority. Smart contract is unverified. Volume momentum is strong but typical new-listing FOMO pattern. High risk, high reward.", action: "watch" },
+  3: { text: "A large sell of 40.8B BONK tokens ($890K) hit a single DEX in one block. This appears to be profit-taking rather than panic selling — the wallet holds additional BONK and the broader bid side absorbed the impact cleanly. Price recovered within 4 minutes.", action: "buy" },
+  4: { text: "WIF is showing institutional-level volume surge — 312% above 30-day average in 15 minutes. Similar patterns preceded the March and August pumps. Three whale wallets entered in the last 8 minutes. Momentum is strongly bullish short-term.", action: "buy" },
+  5: { text: "JUP accumulation of 980K tokens is notable — the wallet previously bought RAY at $1.20 before its 3× run. Timing coincides with Jupiter's upcoming protocol upgrade announcement window. Moderate conviction signal.", action: "watch" },
+  6: { text: "SOLFROG exhibits early-stage memecoin characteristics: very low liquidity ($8.1K), small holder count (89), and an extreme price increase (+2400%) from its initial mint price. Rug risk is elevated — the dev wallet holds 34% of supply.", action: "avoid" },
+};
+
+// ── TICKER LOGIC ──
+function buildTicker(tokens) {
+  const track = document.getElementById('tickerTrack');
+  if (!tokens.length) return;
+  const html = (list) => list.map(t => {
+    const isUp = t.change >= 0;
+    const fmt = t.price < 0.001 ? t.price.toFixed(8) : t.price < 1 ? t.price.toFixed(4) : t.price.toFixed(2);
+    return `<div class="ticker-item" data-sym="${t.sym}">
+      <div class="dot ${isUp ? 'up' : 'dn'}"></div>
+      <span class="sym">${t.sym}</span>
+      <span class="price">$${fmt}</span>
+      <span class="chg ${isUp ? 'up' : 'dn'}">${isUp ? '+' : ''}${t.change.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+  // Double for seamless loop
+  track.innerHTML = html(tokens) + html(tokens);
 }
 
-// ─── Birdeye REST API calls ────────────────────────────────────────────────────
-async function birdeyeGet(path, params = {}) {
-  const url = new URL(BASE_URL + path);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      'X-API-KEY': apiKey,
-      'x-chain': 'solana'
-    }
+function updateTickerItem(sym, newPrice, newChange) {
+  document.querySelectorAll(`.ticker-item[data-sym="${sym}"]`).forEach(el => {
+    const priceEl = el.querySelector('.price');
+    const chgEl = el.querySelector('.chg');
+    const dotEl = el.querySelector('.dot');
+    const isUp = newChange >= 0;
+    const fmt = newPrice < 0.001 ? newPrice.toFixed(8) : newPrice < 1 ? newPrice.toFixed(4) : newPrice.toFixed(2);
+    priceEl.textContent = `$${fmt}`;
+    chgEl.textContent = `${isUp ? '+' : ''}${newChange.toFixed(1)}%`;
+    chgEl.className = `chg ${isUp ? 'up' : 'dn'}`;
+    dotEl.className = `dot ${isUp ? 'up' : 'dn'}`;
+    el.classList.remove('flash-up', 'flash-dn');
+    void el.offsetWidth;
+    el.classList.add(isUp ? 'flash-up' : 'flash-dn');
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  apiCallCount++;
-  document.getElementById('apiCallCount').textContent = apiCallCount + ' API calls';
-  return res.json();
 }
 
-// Fetch recent trades for a token and find large ones
-async function fetchLargeTradesForToken(token) {
+async function refreshTickerPrices() {
+  const bkey = document.getElementById('birdeyeKey').value.trim();
+  if (!bkey || !connected) {
+    // Simulate small price moves in demo mode
+    if (tickerData.length) {
+      tickerData = tickerData.map(t => ({
+        ...t,
+        price: t.price * (1 + (Math.random() - 0.498) * 0.004),
+        change: t.change + (Math.random() - 0.5) * 0.3
+      }));
+      tickerData.forEach(t => updateTickerItem(t.sym, t.price, t.change));
+    }
+    return;
+  }
+  // Real Birdeye multi-price fetch
+  const addrs = DEMO_TOKENS.map(t => t.addr).join(',');
   try {
-    const data = await birdeyeGet('/defi/txs/token', {
-      address: token.address,
-      tx_type: 'swap',
-      limit: 20,
-      sort_type: 'desc'
+    const res = await fetch(`https://public-api.birdeye.so/defi/multi_price?list_address=${addrs}`, {
+      headers: { 'X-API-KEY': bkey, 'x-chain': 'solana' }
     });
-    if (!data?.data?.items) return;
-    for (const tx of data.data.items) {
-      if (seenTxHashes.has(tx.txHash)) continue;
-      seenTxHashes.add(tx.txHash);
-      const vol = tx.volumeUSD || (tx.from?.uiAmount * tx.from?.nearestPrice) || 0;
-      if (vol < largeThresh) continue;
-      const isWhale = vol >= whaleThresh;
-      const isBuy = tx.side === 'buy' || tx.to?.symbol === token.symbol;
-      processAlert({
-        type: isWhale ? 'whale' : 'large',
-        symbol: token.symbol,
-        from: tx.from?.symbol || '?',
-        to: tx.to?.symbol || '?',
-        volumeUSD: vol,
-        isBuy,
-        owner: tx.owner || tx.source,
-        source: tx.source,
-        txHash: tx.txHash,
-        time: nowt(),
+    const data = await res.json();
+    if (data.data) {
+      tickerData = tickerData.map(t => {
+        const live = data.data[t.addr];
+        if (live) {
+          const wasPrice = t.price;
+          const newPrice = live.value;
+          const newChange = live.priceChange24h || t.change;
+          updateTickerItem(t.sym, newPrice, newChange);
+          return { ...t, price: newPrice, change: newChange };
+        }
+        return t;
       });
     }
-  } catch (e) { /* token may have no trades */ }
+  } catch(e) { /* silently fallback */ }
 }
 
-// Fetch new token listings
-async function fetchNewListings() {
-  try {
-    const data = await birdeyeGet('/defi/v2/tokens/new_listing', {
-      limit: 20,
-      meme_platform_enabled: true
-    });
-    if (!data?.data?.items) return;
-    for (const token of data.data.items) {
-      if (seenNewTokens.has(token.address)) continue;
-      seenNewTokens.add(token.address);
-      processAlert({
-        type: 'new',
-        symbol: token.symbol || '?',
-        name: token.name || '?',
-        address: token.address,
-        liquidity: token.liquidity || 0,
-        source: token.source || 'unknown',
-        time: nowt(),
-      });
-    }
-  } catch (e) { console.warn('New listings fetch failed:', e.message); }
-}
+// ── CONNECT ──
+function toggleConnect() {
+  connected = !connected;
+  const dot = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  const btn = document.getElementById('connectBtn');
 
-// Fetch trending tokens
-async function fetchTrending() {
-  try {
-    const data = await birdeyeGet('/defi/token_trending', { sort_by: 'rank', sort_type: 'asc', limit: 5 });
-    if (!data?.data?.tokens) return;
-    for (const token of data.data.tokens) {
-      const key = token.address + '_trending_' + new Date().toDateString();
-      if (seenNewTokens.has(key)) continue;
-      seenNewTokens.add(key);
-      const change = token.price24hChangePercent;
-      if (Math.abs(change) < 10) continue; // only alert on significant movers
-      processAlert({
-        type: 'trending',
-        symbol: token.symbol || '?',
-        name: token.name || '?',
-        address: token.address,
-        price: token.price,
-        change24h: change,
-        volume24h: token.volume24hUSD,
-        time: nowt(),
-      });
-    }
-  } catch (e) { console.warn('Trending fetch failed:', e.message); }
-}
-
-// Also fetch recent txs from /defi/v3/txs/recent for broader coverage
-async function fetchRecentTxs() {
-  try {
-    const data = await birdeyeGet('/defi/v3/txs/recent', { limit: 30 });
-    if (!data?.data?.items) return;
-    for (const tx of data.data.items) {
-      if (seenTxHashes.has(tx.txHash)) continue;
-      seenTxHashes.add(tx.txHash);
-      const vol = tx.volumeUSD || 0;
-      if (vol < largeThresh) continue;
-      const isWhale = vol >= whaleThresh;
-      processAlert({
-        type: isWhale ? 'whale' : 'large',
-        symbol: tx.to?.symbol || tx.from?.symbol || '?',
-        from: tx.from?.symbol || '?',
-        to: tx.to?.symbol || '?',
-        volumeUSD: vol,
-        isBuy: tx.side === 'buy',
-        owner: tx.owner,
-        source: tx.source,
-        txHash: tx.txHash,
-        time: nowt(),
-      });
-    }
-  } catch (e) { /* silent */ }
-}
-
-// ─── Full poll cycle ───────────────────────────────────────────────────────────
-async function runPoll() {
-  if (!isLive || !apiKey) return;
-  setStatus('loading', 'FETCHING…');
-  try {
-    await fetchNewListings();
-    await fetchTrending();
-    await fetchRecentTxs();
-    // stagger token polls to avoid rate limiting
-    for (let i = 0; i < WATCH_TOKENS.length; i++) {
-      await fetchLargeTradesForToken(WATCH_TOKENS[i]);
-      await sleep(300);
-    }
-    setStatus('live', 'LIVE');
-  } catch (e) {
-    setStatus('error', 'ERROR');
-    showError('Poll error: ' + e.message);
+  if (connected) {
+    dot.classList.add('live');
+    label.textContent = 'LIVE';
+    btn.textContent = 'DISCONNECT';
+    btn.classList.remove('primary');
+    btn.classList.add('danger');
+    connectedAt = new Date();
+    document.getElementById('connectedSince').textContent = connectedAt.toLocaleTimeString();
+    startPolling();
+  } else {
+    dot.classList.remove('live');
+    label.textContent = 'DISCONNECTED';
+    btn.textContent = 'CONNECT';
+    btn.classList.add('primary');
+    btn.classList.remove('danger');
+    document.getElementById('connectedSince').textContent = '—';
+    document.getElementById('nextPoll').textContent = '—';
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   }
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ─── Poll timer ───────────────────────────────────────────────────────────────
 function startPolling() {
-  stopPolling();
-  runPoll(); // immediate first poll
-  pollTimerId = setInterval(runPoll, pollInterval * 1000);
-  startCountdown();
-}
-
-function stopPolling() {
-  if (pollTimerId) { clearInterval(pollTimerId); pollTimerId = null; }
-  stopCountdown();
-}
-
-function startCountdown() {
-  stopCountdown();
-  pollCountdown = pollInterval;
-  countdownTimerId = setInterval(() => {
-    pollCountdown--;
-    const pct = ((pollInterval - pollCountdown) / pollInterval) * 100;
-    document.getElementById('pollFill').style.width = pct + '%';
-    document.getElementById('countdownTxt').textContent = pollCountdown + 's';
-    if (pollCountdown <= 0) {
-      pollCountdown = pollInterval;
-      document.getElementById('pollFill').style.width = '0%';
+  fetchAlerts();
+  let countdown = 15;
+  document.getElementById('nextPoll').textContent = `${countdown}s`;
+  pollTimer = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      countdown = 15;
+      fetchAlerts();
     }
+    document.getElementById('nextPoll').textContent = `${countdown}s`;
   }, 1000);
 }
 
-function stopCountdown() {
-  if (countdownTimerId) { clearInterval(countdownTimerId); countdownTimerId = null; }
-  document.getElementById('countdownTxt').textContent = '—';
-  document.getElementById('pollFill').style.width = '0%';
+async function fetchAlerts() {
+  const bkey = document.getElementById('birdeyeKey').value.trim();
+  if (!bkey) { loadDemoAlerts(); return; }
+
+  apiCallCount++;
+  document.getElementById('apiCalls').textContent = apiCallCount;
+
+  // Fetch trending tokens from Birdeye
+  try {
+    const [trendRes, newRes] = await Promise.all([
+      fetch('https://public-api.birdeye.so/defi/token_trending?sort_by=rank&sort_type=asc&offset=0&limit=10', {
+        headers: { 'X-API-KEY': bkey, 'x-chain': 'solana' }
+      }),
+      fetch('https://public-api.birdeye.so/defi/v2/tokens/new_listing?limit=10&meme_platform_enabled=false', {
+        headers: { 'X-API-KEY': bkey, 'x-chain': 'solana' }
+      })
+    ]);
+
+    const trendData = await trendRes.json();
+    const newData = await newRes.json();
+
+    const newAlerts = [];
+    if (trendData.data?.tokens) {
+      trendData.data.tokens.slice(0, 5).forEach((t, i) => {
+        newAlerts.push({
+          id: Date.now() + i,
+          type: 'trending',
+          token: t.symbol || t.name,
+          address: t.address,
+          meta: `Rank #${t.rank || i+1} trending — 24h vol $${formatNum(t.volume24hUSD || 0)}`,
+          price: t.price || 0,
+          change: t.priceChange24hPercent || 0,
+          volume: t.volume24hUSD || 0,
+          time: new Date(),
+          severity: 'medium',
+          aiSummary: null
+        });
+      });
+    }
+
+    if (newData.data?.items) {
+      newData.data.items.slice(0, 3).forEach((t, i) => {
+        newAlerts.push({
+          id: Date.now() + 100 + i,
+          type: 'new',
+          token: t.symbol || t.name,
+          address: t.address,
+          meta: `New listing — liquidity $${formatNum(t.liquidity || 0)}`,
+          price: t.price || 0,
+          change: t.priceChange24hPercent || 0,
+          volume: t.liquidity || 0,
+          time: new Date(),
+          severity: (t.liquidity || 0) < 10000 ? 'low' : 'medium',
+          aiSummary: null
+        });
+      });
+    }
+
+    if (newAlerts.length) {
+      alerts = [...newAlerts, ...alerts].slice(0, 100);
+      renderAlerts();
+      updateStats();
+    }
+  } catch(e) {
+    console.error('Birdeye fetch error:', e);
+    loadDemoAlerts();
+  }
 }
 
-// ─── Alert processing ─────────────────────────────────────────────────────────
-function processAlert(alert) {
-  allAlerts.unshift(alert);
-  stats.total++;
-  if (alert.type === 'whale') stats.whale++;
-  if (alert.type === 'new') stats.new++;
-  if (alert.type === 'large') stats.large++;
+// ── DEMO ──
+function loadDemoAlerts() {
+  alerts = DEMO_ALERTS.map(a => ({ ...a, aiSummary: null }));
+  tickerData = [...DEMO_TOKENS];
+  buildTicker(tickerData);
+  renderAlerts();
   updateStats();
-  if (filters[alert.type] && matchesTab(alert)) renderAlertToDOM(alert, true);
+  // Start ticker updates
+  setInterval(refreshTickerPrices, 3000);
 }
 
-function updateStats() {
-  document.getElementById('stTotal').textContent = stats.total;
-  document.getElementById('stWhale').textContent = stats.whale;
-  document.getElementById('stNew').textContent = stats.new;
-  document.getElementById('stLarge').textContent = stats.large;
-}
-
-function matchesTab(alert) {
-  if (currentTab === 'all') return true;
-  return alert.type === currentTab || (currentTab === 'new' && alert.type === 'new') || (currentTab === 'trending' && alert.type === 'trending');
-}
-
-function renderAlertToDOM(alert, prepend = false) {
-  const feed = document.getElementById('feed');
+// ── RENDER ALERTS ──
+function renderAlerts() {
+  const area = document.getElementById('alertsArea');
   const empty = document.getElementById('emptyState');
-  if (empty && feed.contains(empty)) feed.removeChild(empty);
-
-  const el = document.createElement('div');
-  const tc = alert.type === 'new' ? 'new-token' : alert.type;
-  el.className = 'alert-item ' + tc;
-
-  const typeLabels = { whale: 'WHALE', new: 'NEW LISTING', large: 'LARGE TRADE', trending: 'TRENDING' };
-  const tl = typeLabels[alert.type] || alert.type.toUpperCase();
-
-  let body = '';
-
-  if (alert.type === 'whale' || alert.type === 'large') {
-    body = `
-      <div class="atop">
-        <span class="atype ${tc}">${tl}</span>
-        <span class="atime">${alert.time}</span>
-      </div>
-      <div class="amain">
-        <span class="asym">${alert.from}</span>
-        <span class="arr">→</span>
-        <span class="asym">${alert.to}</span>
-        <span class="avol ${alert.isBuy ? 'up' : 'dn'}" style="margin-left:6px">${fmt(alert.volumeUSD)}</span>
-      </div>
-      <div class="asub">
-        <span>wallet <span style="color:var(--accent2)">${fmtAddr(alert.owner)}</span></span>
-        ${sourcePill(alert.source)}
-        <span>${alert.isBuy ? '▲ BUY' : '▼ SELL'}</span>
-        ${alert.txHash ? `<span><a href="https://solscan.io/tx/${alert.txHash}" target="_blank" style="color:var(--text3);text-decoration:none;">solscan ↗</a></span>` : ''}
-      </div>`;
-  } else if (alert.type === 'new') {
-    body = `
-      <div class="atop">
-        <span class="atype new-token">NEW LISTING</span>
-        <span class="atime">${alert.time}</span>
-      </div>
-      <div class="amain">
-        <span class="asym">${alert.symbol}</span>
-        ${alert.name && alert.name !== alert.symbol ? `<span style="color:var(--text2);font-size:0.8rem">${alert.name}</span>` : ''}
-        <span class="avol ne" style="margin-left:6px">liq ${fmt(alert.liquidity)}</span>
-      </div>
-      <div class="asub">
-        <span>addr <span style="color:var(--accent2)">${fmtAddr(alert.address)}</span></span>
-        ${sourcePill(alert.source)}
-        <a href="https://birdeye.so/token/${alert.address}?chain=solana" target="_blank" style="color:var(--text3);text-decoration:none;">birdeye ↗</a>
-      </div>`;
-  } else if (alert.type === 'trending') {
-    const chg = alert.change24h;
-    const chgStr = (chg > 0 ? '+' : '') + chg.toFixed(1) + '%';
-    body = `
-      <div class="atop">
-        <span class="atype trending">TRENDING</span>
-        <span class="atime">${alert.time}</span>
-      </div>
-      <div class="amain">
-        <span class="asym">${alert.symbol}</span>
-        <span class="avol ${chg > 0 ? 'up' : 'dn'}" style="margin-left:6px">${chgStr} 24h</span>
-        <span style="font-family:var(--mono);font-size:0.78rem;color:var(--text2)">$${alert.price?.toFixed(6) || '—'}</span>
-      </div>
-      <div class="asub">
-        <span>vol 24h ${fmt(alert.volume24h)}</span>
-        <a href="https://birdeye.so/token/${alert.address}?chain=solana" target="_blank" style="color:var(--text3);text-decoration:none;">birdeye ↗</a>
-      </div>`;
-  }
-
-  el.innerHTML = body;
-  if (prepend) {
-    feed.insertBefore(el, feed.firstChild);
-  } else {
-    feed.appendChild(el);
-  }
-
-  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
-}
-
-// ─── UI controls ──────────────────────────────────────────────────────────────
-function handleConnect() {
-  if (isLive) {
-    disconnect();
-    return;
-  }
-  const key = document.getElementById('apiInput').value.trim();
-  if (!key) {
-    startDemoMode();
-    return;
-  }
-  apiKey = key;
-  connect();
-}
-
-function connect() {
-  isLive = true;
-  isDemoMode = false;
-  stopDemoMode();
-  document.getElementById('infoBanner').classList.add('hidden');
-  document.getElementById('connectBtn').textContent = 'DISCONNECT';
-  document.getElementById('connectBtn').classList.add('dis');
-  setStatus('loading', 'FETCHING…');
-  startPolling();
-}
-
-function disconnect() {
-  isLive = false;
-  stopPolling();
-  setStatus('off', 'DISCONNECTED');
-  document.getElementById('connectBtn').textContent = 'CONNECT';
-  document.getElementById('connectBtn').classList.remove('dis');
-}
-
-function setStatus(cls, text) {
-  const b = document.getElementById('statusBadge');
-  b.className = 'status-badge ' + cls;
-  b.textContent = text;
-}
-
-function updateThresh(type, val) {
-  if (type === 'whale') {
-    whaleThresh = parseInt(val);
-    document.getElementById('whaleTreshVal').textContent = fmt(whaleThresh);
-  } else {
-    largeThresh = parseInt(val);
-    document.getElementById('largeTreshVal').textContent = fmt(largeThresh);
-  }
-}
-
-function updatePollInterval(val) {
-  pollInterval = parseInt(val);
-  document.getElementById('pollVal').textContent = val + 's';
-  if (isLive && !isDemoMode) startPolling();
-}
-
-function toggleFilter(type) {
-  filters[type] = !filters[type];
-  const tog = document.getElementById('ftog-' + type);
-  tog.classList.toggle('on', filters[type]);
-  tog.classList.toggle('off', !filters[type]);
-  rebuildFeed();
-}
-
-function switchTab(tab) {
-  currentTab = tab;
-  ['all','whale','new','large','trending'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('act', t === tab);
+  const filtered = alerts.filter(a => {
+    if (currentTab !== 'all' && a.type !== currentTab) return false;
+    if (a.type === 'whale' && !document.getElementById('fWhale').classList.contains('on')) return false;
+    if (a.type === 'new' && !document.getElementById('fNew').classList.contains('on')) return false;
+    if (a.type === 'large' && !document.getElementById('fLarge').classList.contains('on')) return false;
+    if (a.type === 'trending' && !document.getElementById('fTrending').classList.contains('on')) return false;
+    return true;
   });
-  rebuildFeed();
-}
 
-function rebuildFeed() {
-  const feed = document.getElementById('feed');
-  feed.innerHTML = '';
-  const filtered = allAlerts.filter(a => filters[a.type] && matchesTab(a));
-  if (filtered.length === 0) {
-    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-label">NO ALERTS FOR THIS FILTER</div></div>';
+  if (!filtered.length) {
+    empty.style.display = 'flex';
+    area.querySelectorAll('.alert-card').forEach(c => c.remove());
     return;
   }
-  filtered.forEach(a => renderAlertToDOM(a, false));
+  empty.style.display = 'none';
+
+  // Re-render all
+  area.querySelectorAll('.alert-card').forEach(c => c.remove());
+  filtered.forEach(a => {
+    const card = buildAlertCard(a);
+    area.appendChild(card);
+  });
+
+  updateBadges(alerts);
 }
 
-function clearFeed() {
-  allAlerts = [];
-  seenTxHashes.clear();
-  seenNewTokens.clear();
-  stats = { total: 0, whale: 0, new: 0, large: 0 };
+function buildAlertCard(a) {
+  const div = document.createElement('div');
+  div.className = `alert-card ${a.type}`;
+  div.id = `card-${a.id}`;
+  const isUp = a.change >= 0;
+  const sevClass = a.severity === 'high' ? 'sev-high' : a.severity === 'medium' ? 'sev-medium' : 'sev-low';
+  const badgeClass = `badge-${a.type}`;
+  const typeLabel = a.type === 'whale' ? '🐋 WHALE' : a.type === 'new' ? '🆕 NEW' : a.type === 'large' ? '💸 LARGE' : '🔥 TRENDING';
+  const timeStr = formatTime(a.time);
+  const priceFmt = a.price < 0.001 ? a.price.toFixed(8) : a.price < 1 ? a.price.toFixed(4) : a.price.toFixed(2);
+
+  div.innerHTML = `
+    <div class="alert-header" onclick="toggleCard(${a.id})">
+      <div class="severity-dot ${sevClass}"></div>
+      <span class="alert-type-badge ${badgeClass}">${typeLabel}</span>
+      <span class="alert-token">${a.token}</span>
+      <span class="alert-meta">${a.meta}</span>
+      <span class="alert-price-change ${isUp ? 'up' : 'dn'}">${isUp ? '▲' : '▼'} ${Math.abs(a.change).toFixed(1)}%</span>
+      <span class="alert-time">${timeStr}</span>
+    </div>
+    <div class="ai-summary" id="summary-${a.id}">
+      ${buildSummaryContent(a)}
+    </div>
+  `;
+  return div;
+}
+
+function buildSummaryContent(a) {
+  if (a.aiSummary) {
+    const actionClass = `action-${a.aiSummary.action}`;
+    const actionLabel = a.aiSummary.action === 'buy' ? '✓ Consider Entry' : a.aiSummary.action === 'watch' ? '◉ Watch Closely' : '✗ High Risk / Avoid';
+    return `
+      <div class="ai-summary-header">
+        <div class="ai-icon">✦</div>
+        Claude AI Analysis
+      </div>
+      <div class="ai-text">${a.aiSummary.text}</div>
+      <div class="ai-actions">
+        <span class="action-pill ${actionClass}">${actionLabel}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">— AI generated, not financial advice</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="ai-summary-header">
+      <div class="ai-icon">✦</div>
+      Claude AI Analysis
+    </div>
+    <div id="ai-content-${a.id}">
+      <div style="font-size:12px;color:var(--text2);font-family:var(--font-mono);margin-bottom:8px;">
+        Get an AI-powered breakdown of this alert — what it means, why it matters, and what to watch for.
+      </div>
+      <button class="summarize-btn" onclick="runAISummary(${a.id}, event)">
+        ✦ Analyze with Claude
+      </button>
+    </div>
+  `;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById(`card-${id}`);
+  if (!card) return;
+  card.classList.toggle('expanded');
+}
+
+// ── AI SUMMARY ──
+async function runAISummary(alertId, e) {
+  e.stopPropagation();
+  const claudeKey = document.getElementById('claudeKey').value.trim();
+  const contentDiv = document.getElementById(`ai-content-${alertId}`);
+  const alert = alerts.find(a => a.id === alertId);
+  if (!alert || !contentDiv) return;
+
+  // Check for demo mode
+  if (!claudeKey) {
+    // Use demo summary
+    if (AI_SUMMARIES[alertId]) {
+      alert.aiSummary = AI_SUMMARIES[alertId];
+      aiSummaryCount++;
+      document.getElementById('aiSummaryCount').textContent = aiSummaryCount;
+      const summaryDiv = document.getElementById(`summary-${alertId}`);
+      if (summaryDiv) summaryDiv.innerHTML = buildSummaryContent(alert);
+    } else {
+      contentDiv.innerHTML = `<div class="ai-loading"><div class="spinner"></div><span>Demo: Add Claude API key for live AI summaries</span></div>`;
+    }
+    return;
+  }
+
+  // Show loading
+  contentDiv.innerHTML = `<div class="ai-loading"><div class="spinner"></div><span>Claude is analyzing this alert…</span></div>`;
+
+  const prompt = `You are a crypto market analyst monitoring Solana on-chain activity. Analyze this alert and provide a concise, actionable 2-3 sentence insight for a trader.
+
+Alert Type: ${alert.type.toUpperCase()}
+Token: ${alert.token} (${alert.address})
+Details: ${alert.meta}
+Price: $${alert.price}
+24h Change: ${alert.change.toFixed(1)}%
+Volume Involved: $${formatNum(alert.volume || 0)}
+Severity: ${alert.severity}
+Time: ${alert.time.toLocaleString()}
+
+Respond with JSON only:
+{
+  "text": "your 2-3 sentence analysis here",
+  "action": "buy|watch|avoid"
+}
+
+Be specific, reference the numbers, and give a genuine read of what this signal means. Do not give generic advice.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content?.map(c => c.text || '').join('') || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    alert.aiSummary = parsed;
+    aiSummaryCount++;
+    document.getElementById('aiSummaryCount').textContent = aiSummaryCount;
+
+    const summaryDiv = document.getElementById(`summary-${alertId}`);
+    if (summaryDiv) summaryDiv.innerHTML = buildSummaryContent(alert);
+
+  } catch(err) {
+    contentDiv.innerHTML = `<div style="font-size:12px;color:var(--red);font-family:var(--font-mono);">Analysis failed — check your Claude API key or try again.</div>`;
+  }
+}
+
+// ── STATS & BADGES ──
+function updateStats() {
+  document.getElementById('statTotal').textContent = alerts.length;
+  document.getElementById('statWhale').textContent = alerts.filter(a => a.type === 'whale').length;
+  document.getElementById('statNew').textContent = alerts.filter(a => a.type === 'new').length;
+  document.getElementById('statLarge').textContent = alerts.filter(a => a.type === 'large').length;
+  document.getElementById('totalAlertsCount').textContent = alerts.length;
+}
+
+function updateBadges(list) {
+  document.getElementById('badgeAll').textContent = list.length;
+  document.getElementById('badgeWhale').textContent = list.filter(a => a.type === 'whale').length;
+  document.getElementById('badgeNew').textContent = list.filter(a => a.type === 'new').length;
+  document.getElementById('badgeLarge').textContent = list.filter(a => a.type === 'large').length;
+  document.getElementById('badgeTrending').textContent = list.filter(a => a.type === 'trending').length;
+}
+
+// ── TABS ──
+function setTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderAlerts();
+}
+
+// ── FILTERS ──
+function toggleFilter(btn) {
+  btn.classList.toggle('on');
+  renderAlerts();
+}
+
+// ── CLEAR ──
+function clearAlerts() {
+  alerts = [];
+  renderAlerts();
   updateStats();
-  document.getElementById('feed').innerHTML = '<div class="empty-state" id="emptyState"><div class="empty-icon">◎</div><div class="empty-label">FEED CLEARED</div></div>';
+  updateBadges([]);
 }
 
-function showError(msg) {
-  const el = document.createElement('div');
-  el.className = 'error-toast';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+// ── UTILS ──
+function formatTime(d) {
+  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// ─── Demo mode ─────────────────────────────────────────────────────────────────
-const DEMO_TOKENS = ['BONK','JUP','WIF','PYTH','RNDR','MEME','SAMO','KWEEN','RAY','BOME'];
-const DEMO_SOURCES = ['pump_dot_fun','raydium','meteora','orca','lifinity'];
-function raddr() { return Array.from({length:44},()=>'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopq'[Math.floor(Math.random()*48)]).join(''); }
-function rand(a,b) { return Math.random()*(b-a)+a; }
-function pick(a) { return a[Math.floor(Math.random()*a.length)]; }
-
-function genDemoAlert() {
-  const types = ['whale','new','large','trending'], type = pick(types), tok = pick(DEMO_TOKENS), src = pick(DEMO_SOURCES);
-  if (type === 'whale') return { type:'whale', symbol:tok, from:'SOL', to:tok, volumeUSD:rand(60000,600000), isBuy:Math.random()>0.4, owner:raddr(), source:src, txHash:raddr(), time:nowt() };
-  if (type === 'new') return { type:'new', symbol:'$'+pick(['MOON','FROG','CAT','CHAD','APE','WAGMI','GG','REKT']), name:'New Token', address:raddr(), liquidity:rand(1000,40000), source:src, time:nowt() };
-  if (type === 'trending') return { type:'trending', symbol:tok, address:raddr(), price:rand(0.0001,200), change24h:rand(-40,80), volume24h:rand(500000,10000000), time:nowt() };
-  return { type:'large', symbol:tok, from:Math.random()>0.5?'SOL':tok, to:Math.random()>0.5?tok:'USDC', volumeUSD:rand(5000,50000), isBuy:Math.random()>0.5, owner:raddr(), source:src, txHash:raddr(), time:nowt() };
+function formatNum(n) {
+  if (n >= 1e6) return `${(n/1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n/1e3).toFixed(0)}K`;
+  return n.toFixed(0);
 }
 
-function startDemoMode() {
-  isDemoMode = true;
-  isLive = true;
-  document.getElementById('infoBanner').className = 'info-bar demo';
-  document.getElementById('infoBanner').textContent = '⚡ DEMO MODE — Simulated signals. Enter your Birdeye API key to go live.';
-  document.getElementById('connectBtn').textContent = 'DISCONNECT';
-  document.getElementById('connectBtn').classList.add('dis');
-  setStatus('live', 'DEMO LIVE');
-  for (let i = 0; i < 5; i++) setTimeout(() => processAlert(genDemoAlert()), i * 450);
-  demoInterval = setInterval(() => { if (Math.random() > 0.3) processAlert(genDemoAlert()); }, 2500);
-}
-
-function stopDemoMode() {
-  if (demoInterval) { clearInterval(demoInterval); demoInterval = null; }
-}
-
-// ─── Ticker ───────────────────────────────────────────────────────────────────
-function buildTicker() {
-  const items = [
-    {s:'SOL',p:'$148.32',c:'+2.4%',u:1},{s:'BTC',p:'$87,420',c:'+1.1%',u:1},
-    {s:'ETH',p:'$3,211',c:'-0.3%',u:0},{s:'JUP',p:'$1.24',c:'+5.2%',u:1},
-    {s:'BONK',p:'$0.0000182',c:'+8.7%',u:1},{s:'WIF',p:'$2.87',c:'-1.2%',u:0},
-    {s:'RAY',p:'$3.42',c:'+3.1%',u:1},{s:'PYTH',p:'$0.412',c:'-0.8%',u:0},
-  ];
-  let h = '';
-  for (let i = 0; i < 2; i++) items.forEach(t => h += `<span class="titem">${t.s} <span style="color:var(--text)">${t.p}</span> <span class="${t.u?'up':'down'}">${t.c}</span></span>`);
-  document.getElementById('tickerInner').innerHTML = h;
-}
-buildTicker();
-
-// Start demo automatically
-startDemoMode();
+// ── INIT ──
+(function init() {
+  // Start with demo ticker visible immediately
+  tickerData = [...DEMO_TOKENS];
+  buildTicker(tickerData);
+  setInterval(refreshTickerPrices, 3000);
+})();
 </script>
 </body>
 </html>

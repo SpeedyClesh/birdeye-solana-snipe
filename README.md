@@ -98,7 +98,7 @@ Birdeye WebSocket API (Solana)
 ---
 
 ## Demo
-
+![SolanaSnipe Dashboard](./screenshot.png)
 No API key? The dashboard starts in **demo mode** automatically — simulated events stream in so you can explore the full UI without signing up.
 
 ---
@@ -120,3 +120,4 @@ MIT
 *Built for [Birdeye Data BIP Competition Sprint 1](https://superteam.fun/earn/listing/birdeye-data-4-week-bip-competition-sprint-1) · April 2026*
 
 *Tag [@birdeye_data](https://x.com/birdeye_data) · #BirdeyeAPI*
+*Built by [@0xcaptaintrade](https://x.com/0xcaptaintrade)*
